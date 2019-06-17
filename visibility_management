@@ -51,7 +51,7 @@ public class visibility_management : MonoBehaviour
             }
             details_visibility_determiner(x_to_try, y_to_try);
         });
-        current_base_y = current_base_y + Environment.ProcessorCount * 4;
+        current_base_y = current_base_y + Environment.ProcessorCount * 2;
         if(current_base_y > gc.world_map_length)
         {
             current_base_y = current_base_y - gc.world_map_length;
