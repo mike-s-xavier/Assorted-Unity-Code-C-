@@ -1,0 +1,39 @@
+  public void scroll_wheel()
+    {
+        // Scroll In With No Select Object
+        if (Input.GetAxis("Mouse ScrollWheel") > 0)
+        {
+            if (game_camera.transform.position.y > 130)
+            {
+                Ray ray = game_camera.ViewportPointToRay(new Vector3(0.5F, 0.5F, 0));
+                RaycastHit hit;
+                Physics.Raycast(ray, out hit);
+                // Compute Direction Vector
+                Vector3 direction_vector = game_camera.transform.position - hit.point;
+                // Normalize the Direction Vector
+                direction_vector = direction_vector.normalized;
+                // 
+                game_camera.transform.position = new Vector3(game_camera.transform.position.x - direction_vector.x * 5 * gc.zoom_sensitivity,
+                                                    Math.Max(130, game_camera.transform.position.y - Math.Min(game_camera.transform.position.y - 130, gc.zoom_sensitivity * (Input.GetAxis("Mouse ScrollWheel") * 25))),
+                                                    game_camera.transform.position.z - direction_vector.z * 5 * gc.zoom_sensitivity);
+            }
+        }
+        // Scroll Out
+        else if (Input.GetAxis("Mouse ScrollWheel") < 0)
+        {
+            if (game_camera.transform.position.y < 400)
+            {
+                Ray ray = game_camera.ViewportPointToRay(new Vector3(0.5F, 0.5F, 0));
+                RaycastHit hit;
+                Physics.Raycast(ray, out hit);
+                // Compute Direction Vector
+                Vector3 direction_vector = game_camera.transform.position - hit.point;
+                // Normalize the Direction Vector
+                direction_vector = direction_vector.normalized;
+                // 
+                game_camera.transform.position = new Vector3(game_camera.transform.position.x + direction_vector.x * 5 * gc.zoom_sensitivity, Math.Min(400, 
+                game_camera.transform.position.y - Math.Min(400 - game_camera.transform.position.y, gc.zoom_sensitivity * (Input.GetAxis("Mouse ScrollWheel") * 25))),
+                game_camera.transform.position.z + direction_vector.z * 5 * gc.zoom_sensitivity);
+            }
+        }
+    }
