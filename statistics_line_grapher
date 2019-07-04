@@ -317,7 +317,7 @@ public class statistics_graphs : MonoBehaviour {
                     line.endWidth = 0.001f;
                     line.startColor = Color.white;
                     line.endColor = Color.white;
-                    // Set the number of vertex fo the Line Renderer
+                    // Set the number of vertices of the Line Renderer
                     line.positionCount = 2;
                     line.SetPosition(0, points_on_graph_objects[current_point_index].transform.position);
                     line.SetPosition(1, points_on_graph_objects[next_point_index].transform.position);
