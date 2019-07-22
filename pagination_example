@@ -4,10 +4,10 @@
 
     public List<GameObject> disease_linebars_displayed = new List<GameObject>();
 
-    // Display Units in Listing
+    // Display Diseases in Listing
     public void instantiations_for_disease_display(string disease, int m)
     {
-        // Add to Units Displayed List
+        // Add to Diseases Displayed List
         diseases_displayed.Add(disease);
         // Instantiate Active Disease Label
         GameObject new_disease_label = Instantiate(infectious_disease_label) as GameObject;
