@@ -1,0 +1,66 @@
+public void find_next_tile(List<Vector2> path, Vector2 starting_tile, Vector2 ending_tile)
+{
+    for (int i = -1; i <= 1; i++)
+    {
+        for (int k = -1; k <= 1; k++)
+        {
+            if (!(i == 0 & k == 0) & (i == 0 | k == 0))
+            {
+                if (path.Count() > 0)
+                {
+                    if (Vector2.Distance(new Vector2(path[path.Count() - 1].x + i, (path[path.Count() - 1].y + k)), ending_tile)
+                    <= Vector2.Distance(path[path.Count() - 1], ending_tile) & !path.Contains(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k)))
+                    {
+                        bool can_path = true             
+                        // Not On Map
+                        if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gc.world_map_width - 1 
+                            | (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gc.world_map_length - 1)
+                        {
+                            can_path = false;
+                        }
+                        else
+                        {
+                            // Mesh Height Check
+                            if (!(gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue > gc.water_height + 0.01f
+                                & gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue < 0.7f))
+                            {
+                                can_path = false;
+                            }
+                        }
+                        //
+                        if(can_path == true)
+                        {
+                            path.Add(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k));
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    bool can_path = true; 
+                    // Not On Map
+                    if ((int)(starting_tile.x + i) < 0 | (int)(starting_tile.x + i) > gc.world_map_width - 1
+                        | (int)(starting_tile.y + k) < 0 | (int)(starting_tile.y + k) > gc.world_map_length - 1)
+                    {
+                        can_path = false;
+                    }
+                    else
+                    {
+                        // Mesh Height Check                       
+                        if (!(gc.tiles[(int)(starting_tile.x + i), (int)(starting_tile.y + k)].heightValue > gc.water_height + 0.01f
+                            & gc.tiles[(int)(starting_tile.x + i), (int)(starting_tile.y + k)].heightValue < 0.7f))
+                        {
+                            can_path = false;
+                        }
+                    }
+                    //
+                    if(can_path == true)
+                    {
+                        path.Add(new Vector2(starting_tile.x + i, starting_tile.y + k));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
