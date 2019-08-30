@@ -1,3 +1,35 @@
+public void generate_path()
+{
+    bool found_path = false;
+    List<Vector2> path = new List<Vector2>();
+    // Find Path 
+    Parallel.For(-1, 2, (i, state_external) => {
+        Parallel.For(-1, 2, (k, state_internal) => {
+            // Checks
+            List<Vector2> internal_path = new List<Vector2>();
+            internal_path = add_first_tile_path(new Vector2(i, k));
+            int checks = 0;
+            while (checks <= 100 & found_path == false)
+            {
+                checks += 1;
+                find_next_tile(internal_path, starting_tile, ending_tile);
+                // Terminate If End Tile
+                if (internal_path.Count() > 0)
+                {
+                    if (Vector2.Distance(internal_path[internal_path.Count() - 1], ending_tile) <= 1)
+                    {
+                        found_path = true;
+                        path = internal_path;
+                        state_internal.Break();
+                        state_external.Break();
+                        break;
+                    }
+                }
+            }
+        });
+    });
+}
+
 public void find_next_tile(List<Vector2> path, Vector2 starting_tile, Vector2 ending_tile)
 {
     for (int i = -1; i <= 1; i++)
