@@ -6,7 +6,6 @@ for (int k = 0; k < tiles_to_paint_as_array.Count(); k++)
     bool interior_four = false;
     Parallel.For(0, tiles_to_paint_as_array.Count(), (j, interior_state) =>
     {
-
         if (tiles_to_paint_as_array[j][0] > tiles_to_paint_as_array[k][0] & tiles_to_paint_as_array[j][1] == tiles_to_paint_as_array[k][1])
         {
             interior_one = true;
@@ -28,4 +27,8 @@ for (int k = 0; k < tiles_to_paint_as_array.Count(); k++)
             interior_state.Break();
         }
     });
+    if (interior_one & interior_two & interior_three & interior_four)
+    {
+        interior_tiles.Add(tiles_to_paint_as_array[k]);
+    }
 };
