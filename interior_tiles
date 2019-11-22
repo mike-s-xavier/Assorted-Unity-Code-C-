@@ -28,9 +28,4 @@ for (int k = 0; k < tiles_to_paint_as_array.Count(); k++)
             interior_state.Break();
         }
     });
-    if (interior_one & interior_two & interior_three & interior_four)
-    {
-        tiles_to_remove.Add(tiles_to_paint_as_array[k]);
-        tiles_to_unpaint_as_array.Add(tiles_to_paint_as_array[k]);
-    }
 };
