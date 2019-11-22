@@ -1,0 +1,36 @@
+for (int k = 0; k < tiles_to_paint_as_array.Count(); k++)
+{
+    bool interior_one = false;
+    bool interior_two = false;
+    bool interior_three = false;
+    bool interior_four = false;
+    Parallel.For(0, tiles_to_paint_as_array.Count(), (j, interior_state) =>
+    {
+
+        if (tiles_to_paint_as_array[j][0] > tiles_to_paint_as_array[k][0] & tiles_to_paint_as_array[j][1] == tiles_to_paint_as_array[k][1])
+        {
+            interior_one = true;
+        }
+        if (tiles_to_paint_as_array[j][0] < tiles_to_paint_as_array[k][0] & tiles_to_paint_as_array[j][1] == tiles_to_paint_as_array[k][1])
+        {
+            interior_two = true;
+        }
+        if (tiles_to_paint_as_array[j][1] > tiles_to_paint_as_array[k][1] & tiles_to_paint_as_array[j][0] == tiles_to_paint_as_array[k][0])
+        {
+            interior_three = true;
+        }
+        if (tiles_to_paint_as_array[j][1] < tiles_to_paint_as_array[k][1] & tiles_to_paint_as_array[j][0] == tiles_to_paint_as_array[k][0])
+        {
+            interior_four = true;
+        }
+        if (interior_one & interior_two & interior_three & interior_four)
+        {
+            interior_state.Break();
+        }
+    });
+    if (interior_one & interior_two & interior_three & interior_four)
+    {
+        tiles_to_remove.Add(tiles_to_paint_as_array[k]);
+        tiles_to_unpaint_as_array.Add(tiles_to_paint_as_array[k]);
+    }
+};
