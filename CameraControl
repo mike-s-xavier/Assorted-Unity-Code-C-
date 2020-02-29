@@ -1,110 +1,120 @@
-public Dictionary<string, KeyCode> keyboardControls = new Dictionary<string, KeyCode>()
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+
+public class CameraControl : Monobehaviour 
 {
-    {"camera forward",  KeyCode.W},
-    {"camera backward",  KeyCode.S},
-    {"camera clockwise rotation",  KeyCode.D},
-    {"camera counterclockwise rotation",  KeyCode.A},
-};
 
-int rotateDegrees;
+    public Dictionary<string, KeyCode> keyboardControls = new Dictionary<string, KeyCode>()
+    {
+        {"camera forward",  KeyCode.W},
+        {"camera backward",  KeyCode.S},
+        {"camera clockwise rotation",  KeyCode.D},
+        {"camera counterclockwise rotation",  KeyCode.A},
+    };
 
-public void CameraControl()
-{
-    // Camera Rotation
-    if (Input.GetKey(keyboardControls["camera clockwise rotation"]))
-    {
-        RotateCamera();
-    }
-    else if (Input.GetKey(keyboardControls["camera counterclockwise rotation"]))
-    {
-        CounterRotateCamera();
-    }
-    // Camera Movement
-    if (Input.GetKey(keyboardControls["camera forward"]))
-    {
-        MoveCameraForward();
-    }
-    else if (Input.GetKey(keyboardControls["camera backward"]))
-    {
-        MoveCameraBackward();
-    }
-}
+    int rotateDegrees;
 
-float movementMultiplier = 1;
+    public void CameraControl()
+    {
+        // Camera Rotation
+        if (Input.GetKey(keyboardControls["camera clockwise rotation"]))
+        {
+            RotateCamera();
+        }
+        else if (Input.GetKey(keyboardControls["camera counterclockwise rotation"]))
+        {
+            CounterRotateCamera();
+        }
+        // Camera Movement
+        if (Input.GetKey(keyboardControls["camera forward"]))
+        {
+            MoveCameraForward();
+        }
+        else if (Input.GetKey(keyboardControls["camera backward"]))
+        {
+            MoveCameraBackward();
+        }
+    }
 
-public void MoveCameraForward()
-{
-    if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)rotateDegrees / 90f), 0f, movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
-    }
-    else if ((rotateDegrees > 90) & (rotateDegrees <= 180))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
-    }
-    else if ((rotateDegrees > 180) & (rotateDegrees <= 270))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 270) / 90f));
-    }
-    else if ((rotateDegrees > 270) & (rotateDegrees <= 360))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(rotateDegrees - 360) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 270) / 90f));
-    }
-    Vector3 pos = gameObject.transform.position;
-    pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
-    gameObject.transform.position = pos;
-}
+    float movementMultiplier = 1;
 
-public void MoveCameraBackward()
-{
-    if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
+    public void MoveCameraForward()
     {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)rotateDegrees / 90f), 0f, -1 * movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
+        if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)rotateDegrees / 90f), 0f, movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
+        }
+        else if ((rotateDegrees > 90) & (rotateDegrees <= 180))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
+        }
+        else if ((rotateDegrees > 180) & (rotateDegrees <= 270))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 270) / 90f));
+        }
+        else if ((rotateDegrees > 270) & (rotateDegrees <= 360))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(rotateDegrees - 360) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 270) / 90f));
+        }
+        Vector3 pos = gameObject.transform.position;
+        pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
+        gameObject.transform.position = pos;
     }
-    else if ((rotateDegrees > 90) & (rotateDegrees <= 180))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 90) / 90f));
-    }
-    else if ((rotateDegrees > 180) & (rotateDegrees <= 270))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(270 - rotateDegrees) / 90f));
-    }
-    else if ((rotateDegrees > 270) & (rotateDegrees <= 360))
-    {
-        gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(360 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(270 - rotateDegrees) / 90f));
-    }
-    Vector3 pos = gameObject.transform.position;
-    pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
-    gameObject.transform.position = pos;
-}
 
-public void RotateCamera()
-{
-    Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
-    eulerAngles.Set(eulerAngles.x, eulerAngles.y + 5f, eulerAngles.z);
-    gameObject.transform.localRotation = Quaternion.Euler(eulerAngles);
-    base.transform.localRotation = new Quaternion(base.transform.localRotation.x, gameObject.transform.localRotation.y, base.transform.localRotation.z, gameObject.transform.localRotation.w);
-    rotateDegrees += 5;
-    if (rotateDegrees > 360)
+    public void MoveCameraBackward()
     {
-        rotateDegrees -= 360;
+        if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)rotateDegrees / 90f), 0f, -1 * movementMultiplier * ((float)(90 - rotateDegrees) / 90f));
+        }
+        else if ((rotateDegrees > 90) & (rotateDegrees <= 180))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 90) / 90f));
+        }
+        else if ((rotateDegrees > 180) & (rotateDegrees <= 270))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(-1 * movementMultiplier * ((float)(180 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(270 - rotateDegrees) / 90f));
+        }
+        else if ((rotateDegrees > 270) & (rotateDegrees <= 360))
+        {
+            gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(360 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(270 - rotateDegrees) / 90f));
+        }
+        Vector3 pos = gameObject.transform.position;
+        pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
+        gameObject.transform.position = pos;
     }
-}
 
-public void CounterRotateCamera()
-{
-    Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
-    eulerAngles.Set(eulerAngles.x, eulerAngles.y - 5f, eulerAngles.z);
-    gameObject.transform.localRotation = Quaternion.Euler(eulerAngles);
-    base.transform.localRotation = new Quaternion(base.transform.localRotation.x, gameObject.transform.localRotation.y, base.transform.localRotation.z, gameObject.transform.localRotation.w);
-    rotateDegrees -= 5;
-    if (rotateDegrees < 0)
+    public void RotateCamera()
     {
-        rotateDegrees = 360 + rotateDegrees;
+        Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
+        eulerAngles.Set(eulerAngles.x, eulerAngles.y + 5f, eulerAngles.z);
+        gameObject.transform.localRotation = Quaternion.Euler(eulerAngles);
+        base.transform.localRotation = new Quaternion(base.transform.localRotation.x, gameObject.transform.localRotation.y, base.transform.localRotation.z, gameObject.transform.localRotation.w);
+        rotateDegrees += 5;
+        if (rotateDegrees > 360)
+        {
+            rotateDegrees -= 360;
+        }
     }
-}
 
-void Update()
-{
-    CameraControl();   
+    public void CounterRotateCamera()
+    {
+        Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
+        eulerAngles.Set(eulerAngles.x, eulerAngles.y - 5f, eulerAngles.z);
+        gameObject.transform.localRotation = Quaternion.Euler(eulerAngles);
+        base.transform.localRotation = new Quaternion(base.transform.localRotation.x, gameObject.transform.localRotation.y, base.transform.localRotation.z, gameObject.transform.localRotation.w);
+        rotateDegrees -= 5;
+        if (rotateDegrees < 0)
+        {
+            rotateDegrees = 360 + rotateDegrees;
+        }
+    }
+
+    void Update()
+    {
+        CameraControl();   
+    }
+
 }
