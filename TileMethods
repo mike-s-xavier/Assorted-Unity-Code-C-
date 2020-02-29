@@ -43,5 +43,106 @@ public class TileMethods : MonoBehaviour {
             }
         };
     }
+    
+    // Find a path between two tiles
+    public void GeneratePath(vector2 startingTile, Vector2 endingTile)
+    {
+        bool foundPath = false;
+        List<Vector2> path = new List<Vector2>();
+        // Find Path 
+        Parallel.For(-1, 2, (i, stateExternal) => {
+            Parallel.For(-1, 2, (k, stateInternal) => {
+                // Checks
+                List<Vector2> internalPath = new List<Vector2>();
+                internalPath = addFirstTilePath(new Vector2(i, k));
+                int checks = 0;
+                while (checks <= 100 & foundPath == false)
+                {
+                    checks += 1;
+                    FindNextTile(internalPath, startingTile, endingTile);
+                    // Terminate If End Tile
+                    if (internalPath.Count() > 0)
+                    {
+                        if (Vector2.Distance(internalPath[internalPath.Count() - 1], endingTile) <= 1)
+                        {
+                            foundPath = true;
+                            path = internalPath;
+                            stateInternal.Break();
+                            stateExternal.Break();
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    // Find the next tile in a path between two tiles
+    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile)
+    {
+        for (int i = -1; i <= 1; i++)
+        {
+            for (int k = -1; k <= 1; k++)
+            {
+                if (!(i == 0 & k == 0) & (i == 0 | k == 0))
+                {
+                    if (path.Count() > 0)
+                    {
+                        if (Vector2.Distance(new Vector2(path[path.Count() - 1].x + i, (path[path.Count() - 1].y + k)), endingTile)
+                        <= Vector2.Distance(path[path.Count() - 1], endingTile) & !path.Contains(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k)))
+                        {
+                            bool canPath = true             
+                            // Not On Map
+                            if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gc.worldMapWidth - 1 
+                                | (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gc.worldMapLength - 1)
+                            {
+                                canPath = false;
+                            }
+                            else
+                            {
+                                // Mesh Height Check
+                                if (!(gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue > gc.waterHeight + 0.01f
+                                    & gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue < 0.7f))
+                                {
+                                    canPath = false;
+                                }
+                            }
+                            //
+                            if(can_path == true)
+                            {
+                                path.Add(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k));
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        bool canPath = true; 
+                        // Not On Map
+                        if ((int)(startingTile.x + i) < 0 | (int)(startingTile.x + i) > gc.worldMapWidth - 1
+                            | (int)(startingTile.y + k) < 0 | (int)(startingTile.y + k) > gc.worldMapLength - 1)
+                        {
+                            canPath = false;
+                        }
+                        else
+                        {
+                            // Mesh Height Check                       
+                            if (!(gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue > gc.waterHeight + 0.01f
+                                & gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue < 0.7f))
+                            {
+                                canPath = false;
+                            }
+                        }
+                        //
+                        if(can_path == true)
+                        {
+                            path.Add(new Vector2(startingTile.x + i, startingTile.y + k));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }    
 
 }
