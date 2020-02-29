@@ -1,0 +1,47 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class TileMethods : MonoBehaviour {
+
+    // Given a list of 2D tile locations, determine which tiles in the list are interior to other tiles in the list
+    public void FindInteriorTiles(List<Vector2> candidateTiles)
+    {
+        for (int k = 0; k < candidateTiles.Count(); k++)
+        {
+            bool interiorOne = false;
+            bool interiorTwo = false;
+            bool interiorThree = false;
+            bool interiorFour = false;
+            Parallel.For(0, candidateTiles.Count(), (j, interiorState) =>
+            {
+                if (candidateTiles[j][0] > candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
+                {
+                    interiorOne = true;
+                }
+                if (candidateTiles[j][0] < candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
+                {
+                    interiorTwo = true;
+                }
+                if (candidateTiles[j][1] > candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
+                {
+                    interiorThree = true;
+                }
+                if (candidateTiles[j][1] < candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
+                {
+                    interiorFour = true;
+                }
+                if (interiorOne & interiorTwo & interiorThree & interiorFour)
+                {
+                    interiorState.Break();
+                }
+            });
+            if (interiorOne & interiorTwo & interiorThree & interiorFour)
+            {
+                interior_tiles.Add(candidateTiles[k]);
+            }
+        };
+    }
+
+}
