@@ -16,7 +16,7 @@ public class CameraControl : Monobehaviour
 
     int rotateDegrees;
 
-    public void CameraControl()
+    public void MasterCameraControl()
     {
         // Camera Rotation
         if (Input.GetKey(keyboardControls["camera clockwise rotation"]))
@@ -114,7 +114,7 @@ public class CameraControl : Monobehaviour
 
     void Update()
     {
-        CameraControl();   
+        MasterCameraControl();   
     }
 
 }
