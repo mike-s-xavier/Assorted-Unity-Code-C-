@@ -1,0 +1,336 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Collections.Specialized;
+using UnityEngine.UI;
+using UnityEngine;
+using TMPro;
+
+public class DataLineGrapher : MonoBehaviour {
+
+    public GameObject graphPanel;
+    public GameObject pointOnGraph;
+    public GameObject lineOnGraph;
+    public GameObject graphLabel;
+    public GameObject verticalAxisLabelPrefab;
+    public GameObject horizontalAxisLabelPrefab;
+    List<GameObject> verticalAxisLabelObjects = new List<GameObject>();
+    List<GameObject> horizontalAxisLabelObjects = new List<GameObject>();
+    List<GameObject> pointsOnGraph = new List<GameObject>();
+    List<GameObject> linesBetweenPoints = new List<GameObject>();
+
+    public void DestroyOldGraph()
+    {
+        // Destroy Any Old Instantiated Labels, Points, and Lines
+        foreach (var gObj in verticalAxisLabelObjects)
+        {
+            Destroy(gObj);
+        }
+        verticalAxisLabelObjects.Clear();
+        foreach (var gObj in horizontalAxisLabelObjects)
+        {
+            Destroy(gObj);
+        }
+        horizontalAxisLabelObjects.Clear();
+        foreach (var pointObject in pointsOnGraph)
+        {
+            Destroy(pointObject);
+        }
+        pointsOnGraph.Clear();
+        foreach (var line in linesBetweenPoints)
+        {
+            Destroy(line);
+        }
+        linesBetweenPoints.Clear();
+        graphLabel.GetComponent<TextMeshProUGUI>().text = "";
+    }
+
+    public void GenerateGraph(Dictionary<long, decimal> statisticsDictionary, long beginDomain, long endDomain, string category)
+    {
+        DestroyOldGraph();
+        // Rename Graph
+        graphLabel.GetComponent<TextMeshProUGUI>().text = category + ", " + beginDomain.ToString() + " - " + endDomain.ToString();
+        // Generate Vertical Axis Labels
+        List<decimal> verticalAxisLabels = new List<decimal>();
+        for(long k = beginDomain; k <= endDomain; k++)
+        {
+            verticalAxisLabels.Add(statisticsDictionary[k]);
+        }
+        // Sort Values
+        verticalAxisLabels.Sort();
+        // Select 3 Values
+        List<decimal> tempVerticalAxisLabels = new List<decimal>();
+        tempVerticalAxisLabels.Add(verticalAxisLabels[0]); 
+        tempVerticalAxisLabels.Add((verticalAxisLabels[0] + verticalAxisLabels.Last()) / 2);
+        tempVerticalAxisLabels.Add(verticalAxisLabels.Last());
+        verticalAxisLabels = tempVerticalAxisLabels;
+        // Generate Horizontal Axis (Year) Labels
+        List<long> horizontalAxisLabels = new List<long>();
+        long horizontalLabelSkipValue =  (long) (Math.Abs(beginDomain - endDomain)/ (float) 10);
+        if(horizontalLabelSkipValue < 1)
+        {
+            horizontalLabelSkipValue = 1;
+        }
+        for (long k = beginDomain; k <= endDomain; k += horizontalLabelSkipValue)
+        {
+            if(k <= endDomain)
+            {
+                horizontalAxisLabels.Add(k);
+            }
+        }
+        // Sort Years
+        horizontalAxisLabels.Sort();
+        // Place Vertical Axis Labels
+        long i = 1;
+        float midpoint = 0;
+        foreach (var value in verticalAxisLabels)
+        {
+            if(i == 1)
+            {
+                GameObject newVerticalAxisLabel = Instantiate(verticalAxisLabelPrefab) as GameObject;
+                newVerticalAxisLabel.transform.SetParent(graphPanel.transform, false);
+                if (category.Substring(category.Length - 6) == "Change")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 100), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else if (category.Substring(category.Length - 4) == "Rate")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 1000), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                newVerticalAxisLabel.transform.localPosition = new Vector3(-400, (float) -112.5 + 12 + 10, 0);
+                verticalAxisLabelObjects.Add(newVerticalAxisLabel);
+                i += 1;
+            }
+            else if (i == 2)
+            {
+                GameObject newVerticalAxisLabel = Instantiate(verticalAxisLabelPrefab) as GameObject;
+                newVerticalAxisLabel.transform.SetParent(graphPanel.transform, false);
+                midpoint = (float)value;
+                if (category.Substring(category.Length - 6) == "Change")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 100), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else if (category.Substring(category.Length - 4) == "Rate")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 1000), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                newVerticalAxisLabel.transform.localPosition = new Vector3(-400, 0, 0);
+                verticalAxisLabelObjects.Add(newVerticalAxisLabel);
+                i += 1;
+            }
+            else if(i == 3)
+            {
+                GameObject newVerticalAxisLabel = Instantiate(verticalAxisLabelPrefab) as GameObject;
+                newVerticalAxisLabel.transform.SetParent(graphPanel.transform, false);
+                if (category.Substring(category.Length - 6) == "Change")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 100), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else if (category.Substring(category.Length - 4) == "Rate")
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round((value * 1000), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else
+                {
+                    newVerticalAxisLabel.GetComponent<TextMeshProUGUI>().text = Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                newVerticalAxisLabel.transform.localPosition = new Vector3(-400, (float) 112.5 - 12, 0);
+                verticalAxisLabelObjects.Add(newVerticalAxisLabel);
+                i += 1;
+            }
+        }
+        // Place Horizontal Axis Labels
+        i = 1;
+        foreach (var year in horizontalAxisLabels)
+        {
+            if(i == 1)
+            {
+                GameObject newHorizontalAxisLabel = Instantiate(horizontalAxisLabelPrefab) as GameObject;
+                newHorizontalAxisLabel.transform.SetParent(graphPanel.transform, false);
+                long newYear = year;
+                newHorizontalAxisLabel.GetComponent<TextMeshProUGUI>().text = newYear.ToString();
+                newHorizontalAxisLabel.transform.localPosition = new Vector3(-260, -125, 0);
+                horizontalAxisLabelObjects.Add(newHorizontalAxisLabel);
+                i += 1;
+            }
+            else if(i > 1 & i <= horizontalAxisLabels.Count())
+            {
+                GameObject newHorizontalAxisLabel = Instantiate(horizontalAxisLabelPrefab) as GameObject;
+                newHorizontalAxisLabel.transform.SetParent(graphPanel.transform, false);
+                long newYear = year;
+                newHorizontalAxisLabel.GetComponent<TextMeshProUGUI>().text = newYear.ToString();
+                newHorizontalAxisLabel.transform.localPosition = new Vector3(-260 + (545 / (horizontalAxisLabels.Count() - 1)) * (i - 1), -125, 0);
+                horizontalAxisLabelObjects.Add(newHorizontalAxisLabel);
+                i += 1;
+            }
+        }
+        // Create Ordered List of Years on Horizontal Axis
+        horizontalAxisLabels.Sort();
+        // Graph Points
+        i = 1;
+        float maxDistanceAbove = (float) Math.Abs(verticalAxisLabels.Last() - verticalAxisLabels[0]);     
+        float maxDistanceBelow = (float) Math.Abs(verticalAxisLabels[0] - verticalAxisLabels[1]);
+        foreach (var year in statisticsDictionary.Keys)
+        {
+            if(year <= endDomain & year >= beginDomain & horizontalAxisLabels.Contains(year))
+            {
+                GameObject newPoint = Instantiate(pointOnGraph) as GameObject;
+                newPoint.SetActive(true);
+                // Position Point Information Rectangle
+                if (statisticsDictionary[year] >= verticalAxisLabels[0] & statisticsDictionary[year] <= (3 / 4) * (verticalAxisLabels.Last() - verticalAxisLabels[0]))
+                {
+                    newPoint.transform.GetChild(0).gameObject.transform.localPosition = newPoint.transform.GetChild(0).gameObject.transform.localPosition + new Vector3(0, 20, 0);
+                }
+                else
+                {
+                    newPoint.transform.GetChild(0).gameObject.transform.localPosition = newPoint.transform.GetChild(0).gameObject.transform.localPosition + new Vector3(0, -20, 0);
+                }
+                // Point Text Value
+                if(category.Substring(category.Length - 6) == "Change")
+                {
+                    newPoint.transform.GetChild(0).gameObject.GetComponent<TextMeshProUGUI>().text = year.ToString() + ": " + Math.Round((statisticsDictionary[year] * 100), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else if (category.Substring(category.Length - 4) == "Rate")
+                {
+                    newPoint.transform.GetChild(0).gameObject.GetComponent<TextMeshProUGUI>().text = year.ToString() + ": " + Math.Round((statisticsDictionary[year] * 1000), 2, MidpointRounding.AwayFromZero).ToString();
+                }
+                else
+                {
+                    newPoint.transform.GetChild(0).gameObject.GetComponent<TextMeshProUGUI>().text = year.ToString() + ": " + Math.Round(statisticsDictionary[year], 2, MidpointRounding.AwayFromZero).ToString();
+                }               
+                newPoint.transform.GetChild(0).gameObject.SetActive(false);
+                newPoint.transform.SetParent(graphPanel.transform, false);
+                if(horizontalAxisLabels.Last() % 2 == 0)
+                {
+                    if(maxDistanceAbove != 0)
+                    {
+                        if (horizontalAxisLabels.Contains(year))
+                        {
+                            foreach(var hal in horizontalAxisLabelObjects)
+                            {
+                                if(hal.GetComponent<TextMeshProUGUI>().text == year.ToString())
+                                {
+                                    if((float) statisticsDictionary[year] > midpoint)
+                                    {
+                                        newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, (float)(200) * (float)(statisticsDictionary[year] - verticalAxisLabels[1]) / maxDistanceAbove, 0);
+                                    }
+                                    else
+                                    {
+                                        newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, (float)(100) * (float)(statisticsDictionary[year] - verticalAxisLabels[1]) / maxDistanceBelow, 0);
+                                    }
+                                }
+                            }
+                        }
+                        
+                    }
+                    else
+                    {
+                        if (horizontalAxisLabels.Contains(year))
+                        {
+                            foreach (var hal in horizontalAxisLabelObjects)
+                            {
+                                if (hal.GetComponent<TextMeshProUGUI>().text == year.ToString())
+                                {
+                                    newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, 0, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if(maxDistanceAbove != 0)
+                    {
+                        if (horizontalAxisLabels.Contains(year))
+                        {
+                            foreach (var hal in horizontalAxisLabelObjects)
+                            {
+                                if (hal.GetComponent<TextMeshProUGUI>().text == year.ToString())
+                                {
+                                    if ((float)statisticsDictionary[year] > midpoint)
+                                    {
+                                        newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, Math.Min(200, (float)(200) * (float)(statisticsDictionary[year] - verticalAxisLabels[1]) / maxDistanceAbove), 0);
+                                    }
+                                    else
+                                    {
+                                        newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, Math.Min(100, (float)(100) * (float)(statisticsDictionary[year] - verticalAxisLabels[1]) / maxDistanceBelow), 0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (horizontalAxisLabels.Contains(year))
+                        {
+                            foreach (var hal in horizontalAxisLabelObjects)
+                            {
+                                if (hal.GetComponent<TextMeshProUGUI>().text == year.ToString())
+                                {
+                                    newPoint.transform.localPosition = new Vector3(hal.transform.localPosition.x, 0, 0);
+                                }
+                            }
+                        }
+                    }
+                   
+                }
+                pointsOnGraph.Add(newPoint);
+                if (!horizontalAxisLabels.Contains(year))
+                {
+                    newPoint.GetComponent<RectTransform>().sizeDelta = new Vector2(5, 5);
+                }
+                i += 1;
+            }
+        }
+        // Connect Points With Lines
+        foreach(var k in horizontalAxisLabels)
+        {
+            if(horizontalAxisLabels.IndexOf(k) < horizontalAxisLabels.Count() - 1 & horizontalAxisLabels.Count() > 1) 
+            {
+                if (!pointsOnGraph[horizontalAxisLabels.IndexOf(k)].GetComponent<LineRenderer>())
+                {
+                    int currentPointIndex = horizontalAxisLabels.IndexOf(k);
+                    int nextPointIndex = horizontalAxisLabels.IndexOf(k) + 1;
+                    LineRenderer line;
+                    // Add a Line Renderer to the GameObject
+                    line = pointsOnGraph[currentPointIndex].AddComponent<LineRenderer>();
+                    line.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
+                    line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    line.receiveShadows = false;
+                    // Set the width of the Line Renderer
+                    line.startWidth = 0.001f;
+                    line.endWidth = 0.001f;
+                    line.startColor = Color.white;
+                    line.endColor = Color.white;
+                    // Set the number of vertices of the Line Renderer
+                    line.positionCount = 2;
+                    line.SetPosition(0, pointsOnGraph[currentPointIndex].transform.position);
+                    line.SetPosition(1, pointsOnGraph[nextPointIndex].transform.position);
+                }
+            }
+        }
+        // Turn On or Refresh Graph
+        graphPanel.SetActive(true);
+    }
+
+	// Use this for initialization
+	void Start () {
+        pointOnGraph.SetActive(false);
+        lineOnGraph.SetActive(false);
+        graphPanel.SetActive(false);
+	}
+	
+	// Update is called once per frame
+	void Update () {
+
+    }
+}
