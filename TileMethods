@@ -5,6 +5,10 @@ using UnityEngine;
 
 public class TileMethods : MonoBehaviour {
 
+    /// <summary>
+    /// This class contains methods that allow for tile classification and pathfinding on a 2D tile collection.
+    /// </summary>
+
     // Given a list of 2D tile locations, determine which tiles in the list are interior to other tiles in the list
     public void FindInteriorTiles(List<int[]> candidateTiles)
     {
