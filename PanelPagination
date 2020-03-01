@@ -1,0 +1,199 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class PanelPagination : MonoBehaviour {
+   
+    List<string> itemsDisplayed = new List<string>();
+    List<GameObject> itemGameObjects = new List<GameObject>();
+    List<GameObject> itemBarsDisplayed = new List<GameObject>();
+    List<string> items = new List<string>();
+    public GameObject pageNumberInput;
+    public TextMeshProUGUI totalPages;
+    public GameObject nextPageButton;
+    public GameObject previousPageButton;	
+
+    public void InstantiateItem(string itemText, int m)
+    {
+        // Add to Diseases Displayed List
+        itemsDisplayed.Add(itemText);
+        // Instantiate Active itemText Label
+        GameObject newItemLabel = Instantiate(itemLabelPrefab) as GameObject;
+        newItemLabel.transform.SetParent(itemDisplayPanel.transform, false);
+        newItemLabel.GetComponent<TextMeshProUGUI>().text = itemText.ToLower();
+        newItemLabel.transform.localPosition = new Vector3(-85, 310 - (40 * m), 0);
+        newItemLabel.SetActive(true);
+        itemGameObjects.Add(newItemLabel);       
+        // Instantiate itemText Linebars
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) < int.Parse(totalPages.text))
+        {
+            if (m < 7)
+            {
+                GameObject newBar = Instantiate(barPrefab) as GameObject;
+                newBar.transform.SetParent(itemDisplayPanel.transform, false);
+                newBar.transform.localPosition = new Vector3(0, 295 - (40 * (m % 16)), 0);
+                itemBarsDisplayed.Add(newBar);
+            }
+        }
+        else if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) == int.Parse(totalPages.text))
+        {
+            if (items.Count() <= 16)
+            {
+                if (m < items.Count() - 1)
+                {
+                    GameObject newBar = Instantiate(barPrefab) as GameObject;
+                    newBar.transform.SetParent(itemDisplayPanel.transform, false);
+                    newBar.transform.localPosition = new Vector3(0, 295 - (40 * (m % 16)), 0);
+                    itemBarsDisplayed.Add(newBar);
+                }
+            }
+            else
+            {
+                if (items.Count() % 16 == 0 & items.Count() != 0)
+                {
+                    if (m < 16)
+                    {
+                        GameObject newBar = Instantiate(barPrefab) as GameObject;
+                        newBar.transform.SetParent(itemDisplayPanel.transform, false);
+                        newBar.transform.localPosition = new Vector3(0, 295 - (40 * (m % 16)), 0);
+                        itemBarsDisplayed.Add(newBar);
+                    }
+                }
+                else
+                {
+                    if (m < (items.Count() % 16) - 1)
+                    {
+                        GameObject newBar = Instantiate(barPrefab) as GameObject;
+                        newBar.transform.SetParent(itemDisplayPanel.transform, false);
+                        newBar.transform.localPosition = new Vector3(0, 295 - (40 * (m % 16)), 0);
+                        itemBarsDisplayed.Add(newBar);
+                    }
+                }
+            }
+        }
+    }
+
+    public void PageNumberDeterminer()
+    {
+        // Determine Total Pages and Additional Validation for Page Number Input
+        if ((items.Count() - 1) % 16 == 0)
+        {
+            totalPages.text = (((items.Count() - 1) / 16)).ToString();
+        }
+        else
+        {
+            totalPages.text = ((((items.Count() - 1) - (((items.Count() - 1)) % 16)) / 16)).ToString();
+        }
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) < 0)
+        {
+            pageNumberInput.GetComponent<TMP_InputField>().text = "0";
+        }
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) > int.Parse(totalPages.text))
+        {
+            pageNumberInput.GetComponent<TMP_InputField>().text = totalPages.text;
+        }
+        // Enable/Disable Paging Buttons
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) == int.Parse(totalPages.text))
+        {
+            nextPageButton.SetActive(false);
+        }
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) == 0)
+        {
+            previousPageButton.SetActive(false);
+        }
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) > 0)
+        {
+            previousPageButton.SetActive(true);
+        }
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) < int.Parse(totalPages.text))
+        {
+            nextPageButton.SetActive(true);
+        }
+        // Display 
+        DisplayItems(int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text));
+    }
+
+    public void IncreasePageNumber()
+    {
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) < int.Parse(totalPages.text))
+        {
+            pageNumberInput.GetComponent<TMP_InputField>().text = (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) + 1).ToString();
+
+        }
+        DestroyListings();
+        PageNumberDeterminer();
+    }
+
+    public void DecreasePageNumber()
+    {
+        if (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) > 0)
+        {
+            pageNumberInput.GetComponent<TMP_InputField>().text = (int.Parse(pageNumberInput.GetComponent<TMP_InputField>().text) - 1).ToString();
+        }
+        DestroyListings();
+        PageNumberDeterminer();
+    }
+
+    public void DisplayItems(int pageNumber)
+    {
+        // Turn On Prefabs
+        itemLabelPrefab.SetActive(true);
+        barPrefab.SetActive(true);
+        //
+        var m = 0;
+        if (pageNumber == 0)
+        {
+            for (int p = 0; p < Math.Min(16, items.Count()); p++)
+            {
+                InstantiateItem(items[p], m);
+                m += 1;
+            }
+        }
+        else if (pageNumber > 0 & pageNumber < int.Parse(totalPages.text))
+        {
+            for (int p = 16 * pageNumber; p < 16 * pageNumber + 16; p++)
+            {
+                InstantiateItem(items[p], m);
+                m += 1;
+            }
+        }
+        else if (pageNumber == int.Parse(totalPages.text))
+        {
+            for (int p = 16 * pageNumber; p <= items.Count() - 1; p++)
+            {
+                InstantiateItem(items[p], m);
+                m += 1;
+            }
+        }
+        // Turn Off Prefabs
+        itemLabelPrefab.SetActive(false);
+        barPrefab.SetActive(false);
+    }
+
+    // Destroy Listings When Units Panel is Closed
+    public void DestroyListings()
+    {
+        // Perform Validation Before Destruction
+        if (pageNumberInput.GetComponent<TMP_InputField>().text == "")
+        {
+            if (items.IndexOf(itemsDisplayed[0]) % 16 == 0)
+            {
+                pageNumberInput.GetComponent<TMP_InputField>().text = (items.IndexOf(itemsDisplayed[0]) / 16).ToString();
+            }
+        }
+        foreach (var gObj in itemGameObjects)
+        {
+            Destroy(gObj);
+        }
+        itemGameObjects.Clear();
+        foreach(var itemBar in itemBarsDisplayed)
+        {
+            Destroy(itemBar);
+        }
+        itemBarsDisplayed.Clear();
+        // Clear items
+        items.Clear();
+    }
+    
+}
