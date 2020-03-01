@@ -6,13 +6,13 @@ using UnityEngine;
 public class UIFeatures : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHandler {
 
     /// <summary>
-    /// This class has methods that control the camera movement and rotation. Place this class as a component on a camera.
+    /// This class has methods that allow for panel interaction, including repositioning, and the translation of panel text objects.
     /// </summary>
 
-	int dragInt;
-	Vector3 previousMousePosition;
+    int dragInt;
+    Vector3 previousMousePosition;
     Vector3 nextMousePosition;
-	Vector3 originalPosition;
+    Vector3 originalPosition;
 
     public void OnDrag(PointerEventData eventData)
     {
