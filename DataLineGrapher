@@ -9,6 +9,10 @@ using TMPro;
 
 public class DataLineGrapher : MonoBehaviour {
 
+    /// <summary>
+    /// This class takes data points and generates a graph consisting of lines between the points.
+    /// </summary>
+
     public GameObject graphPanel;
     public GameObject pointOnGraph;
     public GameObject lineOnGraph;
