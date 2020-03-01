@@ -5,6 +5,14 @@ using UnityEngine;
 public class CameraControl : Monobehaviour 
 {
 
+    /// <summary>
+    /// This class has methods that control the camera movement and rotation. Place this class as a component on a camera.
+    /// </summary>
+ 
+    int rotateDegrees; // The current rotation of the camera around the y-axis from 0 to 360 degrees.
+    float movementMultiplier = 1; // The responsiveness of the camera to WASD input.
+
+    // The dictionary of keycodes for camera control. 
     public Dictionary<string, KeyCode> keyboardControls = new Dictionary<string, KeyCode>()
     {
         {"camera forward",  KeyCode.W},
@@ -12,8 +20,6 @@ public class CameraControl : Monobehaviour
         {"camera clockwise rotation",  KeyCode.D},
         {"camera counterclockwise rotation",  KeyCode.A},
     };
-
-    int rotateDegrees;
 
     // Implement all camera control methods. Call this in an update method or in a coroutine to control the camera.
     public void MasterCameraControl()
@@ -37,9 +43,15 @@ public class CameraControl : Monobehaviour
             MoveCameraBackward();
         }
     }
-
-    float movementMultiplier = 1;
-
+    
+    // Query terrain height and maintain the camera a fixed distance above the terrain.
+    public void SetCameraHeight()
+    {
+        Vector3 pos = gameObject.transform.position;
+        pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
+        gameObject.transform.position = pos;
+    }
+    
     public void MoveCameraForward()
     {
         if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
@@ -58,9 +70,7 @@ public class CameraControl : Monobehaviour
         {
             gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(rotateDegrees - 360) / 90f), 0f, movementMultiplier * ((float)(rotateDegrees - 270) / 90f));
         }
-        Vector3 pos = gameObject.transform.position;
-        pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
-        gameObject.transform.position = pos;
+        SetCameraHeight();
     }
 
     public void MoveCameraBackward()
@@ -81,9 +91,7 @@ public class CameraControl : Monobehaviour
         {
             gameObject.transform.position = gameObject.transform.position + new Vector3(movementMultiplier * ((float)(360 - rotateDegrees) / 90f), 0f, movementMultiplier * ((float)(270 - rotateDegrees) / 90f));
         }
-        Vector3 pos = gameObject.transform.position;
-        pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
-        gameObject.transform.position = pos;
+        SetCameraHeight();
     }
 
     public void RotateCamera()
