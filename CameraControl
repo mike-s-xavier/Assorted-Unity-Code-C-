@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class CameraControl : Monobehaviour 
 {
@@ -16,6 +15,7 @@ public class CameraControl : Monobehaviour
 
     int rotateDegrees;
 
+    // Implement all camera control methods. Call this in an update method or in a coroutine to control the camera.
     public void MasterCameraControl()
     {
         // Camera Rotation
