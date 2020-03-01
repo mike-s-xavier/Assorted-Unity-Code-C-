@@ -4,6 +4,10 @@ using System.Linq;
 using UnityEngine;
 
 public class PanelPagination : MonoBehaviour {
+
+    /// <summary>
+    /// This class takes a list of strings and generates a panel-book consisting of pages generated at runtime.
+    /// </summary>
    
     List<string> itemsDisplayed = new List<string>();
     List<GameObject> itemGameObjects = new List<GameObject>();
