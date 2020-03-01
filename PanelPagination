@@ -16,7 +16,7 @@ public class PanelPagination : MonoBehaviour {
 
     public void InstantiateItem(string itemText, int m)
     {
-        // Add to Diseases Displayed List
+        // Add to Items Displayed List
         itemsDisplayed.Add(itemText);
         // Instantiate Active itemText Label
         GameObject newItemLabel = Instantiate(itemLabelPrefab) as GameObject;
@@ -171,7 +171,7 @@ public class PanelPagination : MonoBehaviour {
         barPrefab.SetActive(false);
     }
 
-    // Destroy Listings When Units Panel is Closed
+    // Destroy Listings When Panel is Closed
     public void DestroyListings()
     {
         // Perform Validation Before Destruction
