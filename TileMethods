@@ -93,7 +93,7 @@ public class TileMethods : MonoBehaviour {
 	    // This loop varies the y value of tiles being assessed for path progression
             for (int k = -1; k <= 1; k++)
             {
-		// The x and y values may not both be 0 but at least one must be 0, so that the path may proceed in one of four directions from the current tile
+		// The x and y values may not both be 0 but at least one must be 0, so that the path may proceed
                 if (!(i == 0 & k == 0) & (i == 0 | k == 0))
                 {
                     if (path.Count() > 0)
