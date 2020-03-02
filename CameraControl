@@ -22,7 +22,7 @@ public class CameraControl : Monobehaviour
     };
 
     // Implement all camera control methods. Call this in an update method or in a coroutine to control the camera.
-    public void MasterCameraControl()
+    void MasterCameraControl()
     {
         // Camera Rotation
         if (Input.GetKey(keyboardControls["camera clockwise rotation"]))
@@ -45,14 +45,14 @@ public class CameraControl : Monobehaviour
     }
     
     // Query terrain height and maintain the camera a fixed distance above the terrain.
-    public void SetCameraHeight()
+    void SetCameraHeight()
     {
         Vector3 pos = gameObject.transform.position;
         pos.y = map.GetComponent<Terrain>().SampleHeight(transform.position) + 15;
         gameObject.transform.position = pos;
     }
     
-    public void MoveCameraForward()
+    void MoveCameraForward()
     {
         if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
         {
@@ -73,7 +73,7 @@ public class CameraControl : Monobehaviour
         SetCameraHeight();
     }
 
-    public void MoveCameraBackward()
+    void MoveCameraBackward()
     {
         if ((rotateDegrees >= 0) & (rotateDegrees <= 90))
         {
@@ -94,7 +94,7 @@ public class CameraControl : Monobehaviour
         SetCameraHeight();
     }
 
-    public void RotateCamera()
+    void RotateCamera()
     {
         Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
         eulerAngles.Set(eulerAngles.x, eulerAngles.y + 5f, eulerAngles.z);
@@ -107,7 +107,7 @@ public class CameraControl : Monobehaviour
         }
     }
 
-    public void CounterRotateCamera()
+    void CounterRotateCamera()
     {
         Vector3 eulerAngles = gameObject.transform.localRotation.eulerAngles;
         eulerAngles.Set(eulerAngles.x, eulerAngles.y - 5f, eulerAngles.z);
