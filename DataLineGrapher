@@ -24,7 +24,7 @@ public class DataLineGrapher : MonoBehaviour {
     List<GameObject> pointsOnGraph = new List<GameObject>();
     List<GameObject> linesBetweenPoints = new List<GameObject>();
 
-    public void DestroyOldGraph()
+    void DestroyOldGraph()
     {
         // Destroy Any Old Instantiated Labels, Points, and Lines
         foreach (var gObj in verticalAxisLabelObjects)
