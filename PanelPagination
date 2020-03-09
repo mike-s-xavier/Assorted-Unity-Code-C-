@@ -18,7 +18,7 @@ public class PanelPagination : MonoBehaviour {
     public GameObject nextPageButton;
     public GameObject previousPageButton;	
 
-    public void InstantiateItem(string itemText, int m)
+    void InstantiateItem(string itemText, int m)
     {
         // Add to Items Displayed List
         itemsDisplayed.Add(itemText);
@@ -78,7 +78,7 @@ public class PanelPagination : MonoBehaviour {
         }
     }
 
-    public void PageNumberDeterminer()
+    void PageNumberDeterminer()
     {
         // Determine Total Pages and Additional Validation for Page Number Input
         if ((items.Count() - 1) % 16 == 0)
@@ -139,12 +139,8 @@ public class PanelPagination : MonoBehaviour {
         PageNumberDeterminer();
     }
 
-    public void DisplayItems(int pageNumber)
+    void DisplayItems(int pageNumber)
     {
-        // Turn On Prefabs
-        itemLabelPrefab.SetActive(true);
-        barPrefab.SetActive(true);
-        //
         var m = 0;
         if (pageNumber == 0)
         {
@@ -170,13 +166,10 @@ public class PanelPagination : MonoBehaviour {
                 m += 1;
             }
         }
-        // Turn Off Prefabs
-        itemLabelPrefab.SetActive(false);
-        barPrefab.SetActive(false);
     }
 
     // Destroy Listings When Panel is Closed
-    public void DestroyListings()
+    void DestroyListings()
     {
         // Perform Validation Before Destruction
         if (pageNumberInput.GetComponent<TMP_InputField>().text == "")
