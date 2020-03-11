@@ -3,157 +3,158 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class TileMethods : MonoBehaviour {
+namespace Tiles {
+	public class TileMethods : MonoBehaviour {
 
-    /// <summary>
-    /// This class contains methods that allow for tile classification and pathfinding on a 2D tile collection.
-    /// </summary>
+	    /// <summary>
+	    /// This class contains methods that allow for tile classification and pathfinding on a 2D tile collection.
+	    /// </summary>
 
-    // Given a list of 2D tile locations, determine which tiles in the list are interior to other tiles in the list
-    public void FindInteriorTiles(List<int[]> candidateTiles)
-    {
-        for (int k = 0; k < candidateTiles.Count(); k++)
-        {
-            bool interiorOne = false;
-            bool interiorTwo = false;
-            bool interiorThree = false;
-            bool interiorFour = false;
-            // Check each tile for surrounding tiles
-            Parallel.For(0, candidateTiles.Count(), (j, interiorState) =>
-            {
-                if (candidateTiles[j][0] > candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
-                {
-                    interiorOne = true;
-                }
-                if (candidateTiles[j][0] < candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
-                {
-                    interiorTwo = true;
-                }
-                if (candidateTiles[j][1] > candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
-                {
-                    interiorThree = true;
-                }
-                if (candidateTiles[j][1] < candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
-                {
-                    interiorFour = true;
-                }
-                if (interiorOne & interiorTwo & interiorThree & interiorFour)
-                {
-                    interiorState.Break();
-                }
-            });
-            if (interiorOne & interiorTwo & interiorThree & interiorFour)
-            {
-                interiorTiles.Add(candidateTiles[k]);
-            }
-        };
-    }
-    
-    // Find a path between two tiles
-    public void GeneratePath(vector2 startingTile, Vector2 endingTile)
-    {
-        bool foundPath = false;
-        List<Vector2> path = new List<Vector2>();
-        // Find Path 
-	// The outer loop considers x coordinates of tiles under consideration for path progression in a uniquely considered path
-        Parallel.For(-1, 2, (i, stateExternal) => {
-	    // The inner loop considers y coordinates of tiles under consideration for path progression in a uniquely considered path
-            Parallel.For(-1, 2, (k, stateInternal) => {
-                // Checks
-                List<Vector2> internalPath = new List<Vector2>();
-                internalPath = addFirstTilePath(new Vector2(i, k));
-                int checks = 0;
-                while (checks <= 100 & foundPath == false)
-                {
-                    checks += 1;
-                    FindNextTile(internalPath, startingTile, endingTile);
-                    // Terminate If End Tile
-                    if (internalPath.Count() > 0)
-                    {
-                        if (Vector2.Distance(internalPath[internalPath.Count() - 1], endingTile) <= 1)
-                        {
-                            foundPath = true;
-                            path = internalPath;
-                            stateInternal.Break();
-                            stateExternal.Break();
-                            break;
-                        }
-                    }
-                }
-            });
-        });
-    }
+	    // Given a list of 2D tile locations, determine which tiles in the list are interior to other tiles in the list
+	    public void FindInteriorTiles(List<int[]> candidateTiles)
+	    {
+		for (int k = 0; k < candidateTiles.Count(); k++)
+		{
+		    bool interiorOne = false;
+		    bool interiorTwo = false;
+		    bool interiorThree = false;
+		    bool interiorFour = false;
+		    // Check each tile for surrounding tiles
+		    Parallel.For(0, candidateTiles.Count(), (j, interiorState) =>
+		    {
+			if (candidateTiles[j][0] > candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
+			{
+			    interiorOne = true;
+			}
+			if (candidateTiles[j][0] < candidateTiles[k][0] & candidateTiles[j][1] == candidateTiles[k][1])
+			{
+			    interiorTwo = true;
+			}
+			if (candidateTiles[j][1] > candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
+			{
+			    interiorThree = true;
+			}
+			if (candidateTiles[j][1] < candidateTiles[k][1] & candidateTiles[j][0] == candidateTiles[k][0])
+			{
+			    interiorFour = true;
+			}
+			if (interiorOne & interiorTwo & interiorThree & interiorFour)
+			{
+			    interiorState.Break();
+			}
+		    });
+		    if (interiorOne & interiorTwo & interiorThree & interiorFour)
+		    {
+			interiorTiles.Add(candidateTiles[k]);
+		    }
+		};
+	    }
 
-    // Find the next tile in a path between two tiles
-    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile)
-    {
-	// This loop varies the x value of tiles being assessed for path progression
-        for (int i = -1; i <= 1; i++)
-        {
-	    // This loop varies the y value of tiles being assessed for path progression
-            for (int k = -1; k <= 1; k++)
-            {
-		// The x and y values may not both be 0 but at least one must be 0, so that the path may proceed
-                if (!(i == 0 & k == 0) & (i == 0 | k == 0))
-                {
-                    if (path.Count() > 0)
-                    {
-			// Ensure that the next tile is at least as close to the final tile as the previous tile, and that the path does not already contain this tile
-                        if (Vector2.Distance(new Vector2(path[path.Count() - 1].x + i, (path[path.Count() - 1].y + k)), endingTile)
-                        <= Vector2.Distance(path[path.Count() - 1], endingTile) & !path.Contains(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k)))
-                        {
-                            bool canPath = true             
-                            // Not On Map
-                            if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gc.worldMapWidth - 1 
-                                | (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gc.worldMapLength - 1)
-                            {
-                                canPath = false;
-                            }
-                            else
-                            {
-                                // Mesh Height Check
-                                if (!(gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue > gc.waterHeight + 0.01f
-                                    & gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue < 0.7f))
-                                {
-                                    canPath = false;
-                                }
-                            }
-                            // Add tile to path if it has passed all the checks.
-                            if(can_path == true)
-                            {
-                                path.Add(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k));
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        bool canPath = true; 
-                        // Not On Map
-                        if ((int)(startingTile.x + i) < 0 | (int)(startingTile.x + i) > gc.worldMapWidth - 1
-                            | (int)(startingTile.y + k) < 0 | (int)(startingTile.y + k) > gc.worldMapLength - 1)
-                        {
-                            canPath = false;
-                        }
-                        else
-                        {
-                            // Mesh Height Check                       
-                            if (!(gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue > gc.waterHeight + 0.01f
-                                & gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue < 0.7f))
-                            {
-                                canPath = false;
-                            }
-                        }
-                        // Add tile to path if it has passed all the checks.
-                        if(can_path == true)
-                        {
-                            path.Add(new Vector2(startingTile.x + i, startingTile.y + k));
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }    
+	    // Find a path between two tiles
+	    public void GeneratePath(vector2 startingTile, Vector2 endingTile)
+	    {
+		bool foundPath = false;
+		List<Vector2> path = new List<Vector2>();
+		// Find Path 
+		// The outer loop considers x coordinates of tiles under consideration for path progression in a uniquely considered path
+		Parallel.For(-1, 2, (i, stateExternal) => {
+		    // The inner loop considers y coordinates of tiles under consideration for path progression in a uniquely considered path
+		    Parallel.For(-1, 2, (k, stateInternal) => {
+			// Checks
+			List<Vector2> internalPath = new List<Vector2>();
+			internalPath = addFirstTilePath(new Vector2(i, k));
+			int checks = 0;
+			while (checks <= 100 & foundPath == false)
+			{
+			    checks += 1;
+			    FindNextTile(internalPath, startingTile, endingTile);
+			    // Terminate If End Tile
+			    if (internalPath.Count() > 0)
+			    {
+				if (Vector2.Distance(internalPath[internalPath.Count() - 1], endingTile) <= 1)
+				{
+				    foundPath = true;
+				    path = internalPath;
+				    stateInternal.Break();
+				    stateExternal.Break();
+				    break;
+				}
+			    }
+			}
+		    });
+		});
+	    }
 
+	    // Find the next tile in a path between two tiles
+	    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile)
+	    {
+		// This loop varies the x value of tiles being assessed for path progression
+		for (int i = -1; i <= 1; i++)
+		{
+		    // This loop varies the y value of tiles being assessed for path progression
+		    for (int k = -1; k <= 1; k++)
+		    {
+			// The x and y values may not both be 0 but at least one must be 0, so that the path may proceed
+			if (!(i == 0 & k == 0) & (i == 0 | k == 0))
+			{
+			    if (path.Count() > 0)
+			    {
+				// Ensure that the next tile is at least as close to the final tile as the previous tile, and that the path does not already contain this tile
+				if (Vector2.Distance(new Vector2(path[path.Count() - 1].x + i, (path[path.Count() - 1].y + k)), endingTile)
+				<= Vector2.Distance(path[path.Count() - 1], endingTile) & !path.Contains(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k)))
+				{
+				    bool canPath = true             
+				    // Not On Map
+				    if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gc.worldMapWidth - 1 
+					| (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gc.worldMapLength - 1)
+				    {
+					canPath = false;
+				    }
+				    else
+				    {
+					// Mesh Height Check
+					if (!(gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue > gc.waterHeight + 0.01f
+					    & gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue < 0.7f))
+					{
+					    canPath = false;
+					}
+				    }
+				    // Add tile to path if it has passed all the checks.
+				    if(can_path == true)
+				    {
+					path.Add(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k));
+					break;
+				    }
+				}
+			    }
+			    else
+			    {
+				bool canPath = true; 
+				// Not On Map
+				if ((int)(startingTile.x + i) < 0 | (int)(startingTile.x + i) > gc.worldMapWidth - 1
+				    | (int)(startingTile.y + k) < 0 | (int)(startingTile.y + k) > gc.worldMapLength - 1)
+				{
+				    canPath = false;
+				}
+				else
+				{
+				    // Mesh Height Check                       
+				    if (!(gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue > gc.waterHeight + 0.01f
+					& gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue < 0.7f))
+				    {
+					canPath = false;
+				    }
+				}
+				// Add tile to path if it has passed all the checks.
+				if(can_path == true)
+				{
+				    path.Add(new Vector2(startingTile.x + i, startingTile.y + k));
+				    break;
+				}
+			    }
+			}
+		    }
+		}
+	    }    
+	}
 }
