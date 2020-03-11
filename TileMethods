@@ -7,7 +7,7 @@ namespace Tiles {
 	public class TileMethods : MonoBehaviour {
 
 	    /// <summary>
-	    /// This class contains methods that allow for tile classification and pathfinding on a 2D tile collection.
+	    /// This class contains methods that allow for tile classification and pathfinding on a 2D tile collection arranged adjacently.
 	    /// </summary>
 
 	    // Given a list of 2D tile locations, determine which tiles in the list are interior to other tiles in the list
@@ -51,7 +51,7 @@ namespace Tiles {
 	    }
 
 	    // Find a path between two tiles
-	    public void GeneratePath(vector2 startingTile, Vector2 endingTile)
+	    public void GeneratePath(vector2 startingTile, Vector2 endingTile, int gridWidth, int gridLength)
 	    {
 		bool foundPath = false;
 		List<Vector2> path = new List<Vector2>();
@@ -67,7 +67,7 @@ namespace Tiles {
 			while (checks <= 100 & foundPath == false)
 			{
 			    checks += 1;
-			    FindNextTile(internalPath, startingTile, endingTile);
+			    FindNextTile(internalPath, startingTile, endingTile, gridWidth, gridLength);
 			    // Terminate If End Tile
 			    if (internalPath.Count() > 0)
 			    {
@@ -86,7 +86,7 @@ namespace Tiles {
 	    }
 
 	    // Find the next tile in a path between two tiles
-	    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile)
+	    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile, int gridWidth, int gridLength)
 	    {
 		// This loop varies the x value of tiles being assessed for path progression
 		for (int i = -1; i <= 1; i++)
@@ -104,20 +104,11 @@ namespace Tiles {
 				<= Vector2.Distance(path[path.Count() - 1], endingTile) & !path.Contains(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k)))
 				{
 				    bool canPath = true             
-				    // Not On Map
-				    if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gc.worldMapWidth - 1 
-					| (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gc.worldMapLength - 1)
+				    // Not On Grid
+				    if ((int)(path[path.Count() - 1].x + i) < 0 | (int)(path[path.Count() - 1].x + i) > gridWidth - 1 
+					| (int)(path[path.Count() - 1].y + k) < 0 | (int)(path[path.Count() - 1].y + k) > gridLength - 1)
 				    {
 					canPath = false;
-				    }
-				    else
-				    {
-					// Mesh Height Check
-					if (!(gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue > gc.waterHeight + 0.01f
-					    & gc.tiles[(int)(path[path.Count() - 1].x + i), (int)(path[path.Count() - 1].y + k)].heightValue < 0.7f))
-					{
-					    canPath = false;
-					}
 				    }
 				    // Add tile to path if it has passed all the checks.
 				    if(can_path == true)
@@ -130,20 +121,11 @@ namespace Tiles {
 			    else
 			    {
 				bool canPath = true; 
-				// Not On Map
-				if ((int)(startingTile.x + i) < 0 | (int)(startingTile.x + i) > gc.worldMapWidth - 1
-				    | (int)(startingTile.y + k) < 0 | (int)(startingTile.y + k) > gc.worldMapLength - 1)
+				// Not On Grid
+				if ((int)(startingTile.x + i) < 0 | (int)(startingTile.x + i) > gridWidth - 1
+				    | (int)(startingTile.y + k) < 0 | (int)(startingTile.y + k) > gridLength - 1)
 				{
 				    canPath = false;
-				}
-				else
-				{
-				    // Mesh Height Check                       
-				    if (!(gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue > gc.waterHeight + 0.01f
-					& gc.tiles[(int)(startingTile.x + i), (int)(startingTile.y + k)].heightValue < 0.7f))
-				    {
-					canPath = false;
-				    }
 				}
 				// Add tile to path if it has passed all the checks.
 				if(can_path == true)
