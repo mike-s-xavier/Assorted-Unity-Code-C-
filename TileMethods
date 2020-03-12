@@ -88,6 +88,7 @@ namespace Tiles {
 	    // Find the next tile in a path between two tiles
 	    public void FindNextTile(List<Vector2> path, Vector2 startingTile, Vector2 endingTile, int gridWidth, int gridLength)
 	    {
+	    	Vector2 candidateVector = new Vector2(9999, 9999);
 		// This loop varies the x value of tiles being assessed for path progression
 		for (int i = -1; i <= 1; i++)
 		{
@@ -130,13 +131,20 @@ namespace Tiles {
 				// Add tile to path if it has passed all the checks.
 				if(can_path == true)
 				{
-				    path.Add(new Vector2(startingTile.x + i, startingTile.y + k));
-				    break;
+					if(Vector2.Distance(new Vector2(startingTile.x + i, startingTile.y + k), endingTile)
+					< Vector2.Distance(candidateVector, endingTile))
+					{
+						candidateVector = new Vector2(startingTile.x + i, startingTile.y + k);
+					}
 				}
 			    }
 			}
 		    }
 		}
-	    }    
-	}
+		if(candidateVector != new Vector2(9999, 9999))
+		{
+			path.Add(candidateVector);
+		}
+	    }    	
+	}	
 }
