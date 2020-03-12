@@ -114,8 +114,11 @@ namespace Tiles {
 				    // Add tile to path if it has passed all the checks.
 				    if(can_path == true)
 				    {
-					path.Add(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k));
-					break;
+					if(Vector2.Distance(new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k), endingTile)
+					< Vector2.Distance(candidateVector, endingTile))
+					{
+						candidateVector = new Vector2(path[path.Count() - 1].x + i, path[path.Count() - 1].y + k);
+					}				    
 				    }
 				}
 			    }
