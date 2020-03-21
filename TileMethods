@@ -51,7 +51,7 @@ namespace Tiles {
 	    }
 
 	    // Find a path between two tiles
-	    public void GeneratePath(vector2 startingTile, Vector2 endingTile, int gridWidth, int gridLength)
+	    public List<Vector2> GeneratePath(vector2 startingTile, Vector2 endingTile, int gridWidth, int gridLength)
 	    {
 		bool foundPath = false;
 		List<Vector2> path = new List<Vector2>();
@@ -83,6 +83,12 @@ namespace Tiles {
 			}
 		    });
 		});
+		if(foundPath == false)
+		{
+			path.Clear();
+			path.Add(startingTile);
+		}
+		return path;
 	    }
 
 	    // Find the next tile in a path between two tiles
