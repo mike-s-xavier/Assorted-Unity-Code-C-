@@ -1,0 +1,54 @@
+public class Wall : MonoBehaviour
+{
+
+    public master master;
+
+    public GameObject selectedBuildingMaterial;
+
+    public int wallLength;
+    public int wallHeight;
+
+    public Vector3 baseLevel;
+
+    GameObject[] pieces;
+
+    public IEnumerator FillSpace()
+    {
+        pieces = new GameObject[wallHeight * wallLength];
+        int numberOfBricks = 0;
+        while(numberOfBricks < wallLength * wallHeight)
+        {
+            for(int i = 0; i < Mathf.Min(master.brickComputeSpeed, (wallHeight * wallLength) - numberOfBricks); i++)
+            {
+                GameObject newPiece = Instantiate(selectedBuildingMaterial) as GameObject;
+                newPiece.GetComponent<Rigidbody>().isKinematic = true;           
+                newPiece.transform.position
+                = new Vector3(
+                 baseLevel.x,
+                 baseLevel.y +  newPiece.GetComponent<MeshCollider>().bounds.extents.y * 2 * (numberOfBricks - (numberOfBricks % wallLength)) / wallLength,
+                 baseLevel.z + newPiece.GetComponent<MeshCollider>().bounds.extents.z * 2 * (numberOfBricks % wallLength)
+                );
+                pieces[numberOfBricks] = newPiece;
+                numberOfBricks += 1;
+            }                 
+            yield return null;
+        } 
+        for(int i = 0; i < wallHeight * wallLength; i++)
+        {
+           pieces[i].GetComponent<Rigidbody>().isKinematic = false;
+        }
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        baseLevel = gameObject.transform.position - gameObject.GetComponent<BoxCollider>().bounds.extents;
+        StartCoroutine(FillSpace());
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
