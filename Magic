@@ -1,0 +1,2315 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
+using DamageNumbersPro;
+
+public class Magic : MonoBehaviour
+{
+
+    public bool debugDanceOff;
+    public bool debugDanceEasy;
+
+    public AudioClip dizzySound;
+
+    public AudioSource shakeAS;
+    public AudioSource levitateAS;
+
+    public GameMaster gameMaster;
+
+    public GameObject dancingHenry;
+
+    public GameObject danceMenu;
+
+    public DamageNumberMesh dmgNmbMesh;
+    public DamageNumberMesh gooberDmgNmbMesh;
+
+    public PlaySoundbar psb;
+
+    public TextMeshProUGUI speedIndicator;
+
+    public float defaultSpeedRatio;
+    public bool slowed;
+    public float currentSlowPoints;
+    public ProgressBarPro slowDownBar;
+
+    public float originalLocalPositionArrowMoveIndicatorsY;
+    public float originalLocalPositionNumberIndicatorsY;
+    public Vector2 defaultSize;
+
+    public List<List<InputAction>> danceSequenceKeys = new List<List<InputAction>>();
+    public List<List<int>> danceSequenceTaps = new List<List<int>>();
+    public List<float> danceSequenceSpeedRatios = new List<float>();
+    public List<int> danceSequenceRepititions = new List<int>();
+    public List<string> danceNames;
+
+    public int currentSequenceIndex;
+
+    public List<InputAction> arrowKeySequence = new List<InputAction>();
+    public List<int> tapsSequence = new List<int>();
+    InputAction currentKeyInSequence;
+
+
+    public System.Random rnd = new System.Random();
+    public List<AudioClip> exertionClips = new List<AudioClip>();
+    public AudioSource danceExertionAS;
+
+    public AudioSource slideInAS;
+
+    public AudioSource slowDownAS;
+    public AudioSource speedUpAS;
+
+    // Spells/Dances
+
+    public string unlockDoorDanceName = "Unlock Door Spell";
+    public List<InputAction> unlockDoorSpell = new List<InputAction>();
+    public List<int> unlockDoorSpellTaps = new List<int>();
+
+    public string levitateObjectDanceName = "Levitate Object Spell";
+    public List<InputAction> levitateObjectSpell = new List<InputAction>();
+    public List<int> levitateObjectSpellTaps = new List<int>();
+
+    public string enchantDanceName = "Enchant Spell";
+    public List<InputAction> enchantSpell = new List<InputAction>();
+    public List<int> enchantSpellTaps = new List<int>();
+
+    public string frightenDanceName = "Frighten Spell";
+    public List<InputAction> frightenSpell = new List<InputAction>();
+    public List<int> frightenSpellTaps = new List<int>();
+
+    public string sleepDanceName = "Sleep Spell";
+    public List<InputAction> sleepSpell = new List<InputAction>();
+    public List<int> sleepSpellTaps = new List<int>();
+
+    public string fixDanceName = "Fix Spell";
+    public List<InputAction> fixSpell = new List<InputAction>();
+    public List<int> fixSpellTaps = new List<int>();
+
+    public string igniteDanceName = "Ignite Spell";
+    public List<InputAction> igniteSpell = new List<InputAction>();
+    public List<int> igniteSpellTaps = new List<int>();
+
+    public string throwDanceName = "Throw Spell";
+    public List<InputAction> throwSpell = new List<InputAction>();
+    public List<int> throwSpellTaps = new List<int>();
+
+    public string extinguishDanceName = "Extinguish Spell";
+    public List<InputAction> extinguishSpell = new List<InputAction>();
+    public List<int> extinguishSpellTaps = new List<int>();
+
+    List<string> complexSpellNames = new List<string>() { "Fix Spell", "Ignite Spell", "Extinguish Spell" };
+
+    //
+
+    public Material whitePlasticMaracas;
+    public Material woodenMaracas;
+    public Material steelMaracas;
+
+    public GameObject maracaRight;
+    public GameObject maracaLeft;
+
+    public void SetMaracaMaterial()
+    {
+        int numRoll = rnd.Next(1, 10);
+        Material matRight = maracaRight.GetComponent<Renderer>().material;
+        Material matLeft = maracaLeft.GetComponent<Renderer>().material;
+        // Wooden Maraca
+        if (numRoll <= 3)
+        {
+            matRight = woodenMaracas;
+            matLeft = woodenMaracas;
+        }
+        // Steel Maraca
+        else if (numRoll > 3 & numRoll <= 6)
+        {
+            matRight = steelMaracas;
+            matLeft = steelMaracas;
+        }
+        // White Maraca
+        else
+        {
+            matRight = whitePlasticMaracas;
+            matLeft = whitePlasticMaracas;
+        }
+        maracaRight.GetComponent<Renderer>().material = matRight;
+        maracaLeft.GetComponent<Renderer>().material = matLeft; 
+    }
+    //
+
+    public AudioSource gooberSoundAudioSource;
+    public List<AudioClip> gooberClips = new List<AudioClip>();
+
+    public void PlayGooberNote()
+    {
+        if (!gooberSoundAudioSource.isPlaying)
+        {
+            gooberSoundAudioSource.clip = gooberClips[rnd.Next(0, gooberClips.Count())];
+            gooberSoundAudioSource.time = 0;
+            gooberSoundAudioSource.Play();
+        }
+    }
+
+    public AudioSource musicSwitchAudio;
+
+    public AudioSource danceMusicAudio;
+    public AudioSource metronomeAudio;
+
+    public AudioClip celebrationTheme;
+    public AudioClip dangerTheme;
+    public AudioClip menuTheme;
+    public AudioClip rockTheme;
+    public AudioClip morningTheme;
+    public AudioClip nightTheme;
+    public AudioClip clubTheme;
+    public AudioClip pianoTheme;
+    public AudioClip workTheme;
+
+
+    public DamageNumber oldEncouragementDmgNmg;
+
+    List<string> encouragements = new List<string>() { "You got this!", "Good job!", "Keep it up!" };
+
+    public void GenerateGooberEncouragement()
+    {
+        if (rnd.Next(0,101) > 90)
+        {
+            if (oldEncouragementDmgNmg != null)
+            {
+                Destroy(oldEncouragementDmgNmg.gameObject);
+            }
+            DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+            newDamageNumber.permanent = false;
+            newDamageNumber.enableTopText = true;
+            newDamageNumber.enableBottomText = true;
+            newDamageNumber.topText = encouragements[rnd.Next(0, encouragements.Count())];
+            newDamageNumber.bottomText = "";
+            newDamageNumber.UpdateText();
+            newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+            newDamageNumber.gameObject.SetActive(true);
+            oldEncouragementDmgNmg = newDamageNumber;
+            PlayGooberNote();
+        }
+    }
+
+    public Michsky.UI.ModernUIPack.HorizontalSelector themeSelectionHS;
+
+    public DamageNumber oldMusicDmgNmg;
+
+    public void GenerateGooberMusicResponse(string response)
+    {
+        StartCoroutine(GenerateMusicResponse(response));
+    }
+
+    public IEnumerator GenerateMusicResponse(string response)
+    {
+        float timeElapsed = 0;
+        while(timeElapsed < 0.25f)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        if (oldMusicDmgNmg != null)
+        {
+            Destroy(oldMusicDmgNmg.gameObject);
+        }
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = response;
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        oldMusicDmgNmg = newDamageNumber;
+        PlayGooberNote();
+    }
+
+    public void SetTheme(string theme)
+    {
+        bool play = false;
+        if (danceMusicAudio.isPlaying)
+        {
+            play = true;
+        }
+        if (theme == "Celebration")
+        {
+            danceMusicAudio.clip = celebrationTheme;
+            GenerateGooberMusicResponse("Good vibes!");
+        }
+        else if(theme == "Danger")
+        {
+            danceMusicAudio.clip = dangerTheme;
+            GenerateGooberMusicResponse("Spooky!");
+        }
+        else if(theme == "Menu")
+        {
+            danceMusicAudio.clip = menuTheme;
+            GenerateGooberMusicResponse("So formal!");
+        }
+        else if(theme == "Rock")
+        {
+            danceMusicAudio.clip = rockTheme;
+            GenerateGooberMusicResponse("Rock on!");
+        }
+        else if(theme == "Morning")
+        {
+            danceMusicAudio.clip = morningTheme;
+            GenerateGooberMusicResponse("Wakes me up!");
+        }
+        else if(theme == "Night")
+        {
+            danceMusicAudio.clip = nightTheme;
+            GenerateGooberMusicResponse("Puts me to sleep!");
+        }
+        else if(theme == "Club")
+        {
+            danceMusicAudio.clip = clubTheme;
+            GenerateGooberMusicResponse("Time to party!");
+        }
+        else if(theme == "Piano")
+        {
+            danceMusicAudio.clip = pianoTheme;
+            GenerateGooberMusicResponse("So elegant!");
+        }
+        else if(theme == "Work")
+        {
+            danceMusicAudio.clip = workTheme;
+            GenerateGooberMusicResponse("It's all business!");
+        }
+        danceMusicAudio.time = 0;
+        musicSwitchAudio.Play();
+        if (play)
+        {
+            if (!psb.isPlaying)
+            {
+                psb.isPlaying = true;
+                StartCoroutine(psb.ModulateSampleBars());
+            }
+            danceMusicAudio.Play();
+        }
+    }
+
+    public void NextTheme()
+    {
+        bool play = false;
+        if (danceMusicAudio.isPlaying)
+        {
+            play = true;
+        }
+        if (danceMusicAudio.clip == celebrationTheme)
+        {
+            danceMusicAudio.clip = dangerTheme;
+            //
+            themeSelectionHS.index = 1;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Spooky!");
+        }
+        else if(danceMusicAudio.clip == dangerTheme)
+        {
+            danceMusicAudio.clip = menuTheme;
+            //
+            themeSelectionHS.index = 2;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("So formal!");
+        }
+        else if(danceMusicAudio.clip == menuTheme)
+        {
+            danceMusicAudio.clip = rockTheme;
+            //
+            themeSelectionHS.index = 3;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Rock on!");
+        }
+        else if(danceMusicAudio.clip == rockTheme)
+        {
+            danceMusicAudio.clip = morningTheme;
+            //
+            themeSelectionHS.index = 4;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Wakes me up!");
+        }
+        else if(danceMusicAudio.clip == morningTheme)
+        {
+            danceMusicAudio.clip = nightTheme;
+            //
+            themeSelectionHS.index = 5;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Puts me to sleep!");
+        }
+        else if(danceMusicAudio.clip == nightTheme)
+        {
+            danceMusicAudio.clip = clubTheme;
+            //
+            themeSelectionHS.index = 6;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Time to party!");
+        }
+        else if(danceMusicAudio.clip == clubTheme)
+        {
+            danceMusicAudio.clip = pianoTheme;
+            //
+            themeSelectionHS.index = 7;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("So elegant!");
+        }
+        else if(danceMusicAudio.clip == pianoTheme)
+        {
+            danceMusicAudio.clip = workTheme;
+            //
+            themeSelectionHS.index = 8;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("It's all business!");
+        }
+        else if(danceMusicAudio.clip == workTheme)
+        {
+            danceMusicAudio.clip = celebrationTheme;
+            //
+            themeSelectionHS.index = 0;
+            themeSelectionHS.UpdateUI();
+            GenerateGooberMusicResponse("Good vibes!");
+        }
+        danceMusicAudio.time = 0;
+        musicSwitchAudio.Play();
+        if (play)
+        {
+            if (!psb.isPlaying)
+            {
+                psb.isPlaying = true;
+                StartCoroutine(psb.ModulateSampleBars());
+            }
+            danceMusicAudio.Play();
+        }
+    }
+
+    public Sprite arrow;
+    public Sprite oneimg;
+    public Sprite twoimg;
+    public Sprite threeimg;
+
+    public TextMeshProUGUI danceTitle;
+    public List<GameObject> arrowMoveIndicators;
+    public List<GameObject> numberIndicators;
+
+    public TextMeshProUGUI countdownText;
+
+    public AudioClip failureSound;
+    public AudioClip successSound;
+
+    public MessageEvent failureMessage;
+    public MessageEvent successMessage;
+
+    public float speedRatio;
+
+    public int repititions;
+    public int successfulRepititions;
+
+    public void GeneralDanceConfiguration(string localDanceTitle, List<InputAction> dance, List<int> taps, bool firstDance)
+    {
+        danceTitle.text = localDanceTitle;
+        arrowKeySequence = dance;
+        tapsSequence = taps;
+        if (firstDance)
+        {        
+            indicesBouncing.Clear();
+        }
+        for (int i = 0; i < arrowMoveIndicators.Count(); i++)
+        {
+            // Position Arrow Move Indicators and Number Indicators for Drop In 
+            if (firstDance)
+            {
+                arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition += new Vector3(0, 100, 0);
+                numberIndicators[i].GetComponent<RectTransform>().localPosition += new Vector3(0, 100, 0);
+            }
+            //
+            if (arrowKeySequence[i] == gameMaster.mainMenuC.danceUp)
+            {
+                arrowMoveIndicators[i].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 0);
+            }
+            else if (arrowKeySequence[i] == gameMaster.mainMenuC.danceDown)
+            {
+                arrowMoveIndicators[i].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 180);
+            }
+            else if (arrowKeySequence[i] == gameMaster.mainMenuC.danceRight)
+            {
+                arrowMoveIndicators[i].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, -90);
+            }
+            else if (arrowKeySequence[i] == gameMaster.mainMenuC.danceLeft)
+            {
+                arrowMoveIndicators[i].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 90);
+            }
+            arrowMoveIndicators[i].GetComponent<Image>().color = new Color(1, 1, 1, 0.50f);
+            numberIndicators[i].GetComponent<Image>().color = new Color(1, 1, 1, 0.50f);
+            if (tapsSequence[i] == 1)
+            {
+                numberIndicators[i].GetComponent<Image>().sprite = oneimg;
+            }
+            else if (tapsSequence[i] == 2)
+            {
+                numberIndicators[i].GetComponent<Image>().sprite = twoimg;
+            }
+            else if(tapsSequence[i] == 3)
+            {
+                numberIndicators[i].GetComponent<Image>().sprite = threeimg;
+            }
+        }
+        StartCoroutine(DropIn(firstDance));
+    }
+
+    public Vector2 CubicBezier(float t, Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3)
+    {
+        Vector2 part1 = new Vector2(Mathf.Pow((1 - t), 3) * p0.x, Mathf.Pow((1 - t), 3) * p0.y);
+        Vector2 part2 = new Vector2(3 * Mathf.Pow((1 - t), 2) * t * p1.x, 3 * Mathf.Pow((1 - t), 2) * t * p1.y);
+        Vector2 part3 = new Vector2(3 * (1 - t) * Mathf.Pow(t, 2) * p2.x, 3 * (1 - t) * Mathf.Pow(t, 2) * p2.y);
+        Vector2 part4 = new Vector2(Mathf.Pow(t, 3) * p3.x, Mathf.Pow(t, 3) * p3.y);
+        return part1 + part2 + part3 + part4;
+    }
+
+    public int iterations = 0;
+    public int permittedIterations = 12;
+
+    public IEnumerator BounceRoutine(Image obj, float maxTime, float effectProportion)
+    {
+        if (iterations > permittedIterations)
+        {
+            obj.rectTransform.sizeDelta = defaultSize;
+            yield return null;
+        }
+        else
+        {
+            //
+            iterations += 1;
+            //
+            float completedRatio = 0;
+            float currentTime = 0;
+            //
+            Vector2 p0 = obj.rectTransform.sizeDelta;
+            Vector2 p1 = defaultSize - new Vector2(0.1f * defaultSize.x * effectProportion, 0.05f * defaultSize.y * effectProportion);
+            Vector2 p2 = defaultSize + new Vector2(0.1f * defaultSize.x * effectProportion, 0.05f * defaultSize.y * effectProportion);
+            Vector2 p3 = defaultSize;
+
+            while (completedRatio < 1)
+            {
+                completedRatio = currentTime / maxTime;
+                obj.rectTransform.sizeDelta = CubicBezier(completedRatio, p0, p1, p2, p3);
+                currentTime += Time.deltaTime;
+                yield return null;
+            }
+
+            iterations -= 1;
+
+            if (effectProportion > 0.125f)
+            {
+                BounceRoutine(obj, 0.125f, 0.5f * effectProportion);
+            }
+            else if (effectProportion <= 0.125f)
+            {
+                obj.rectTransform.sizeDelta = defaultSize;
+            }
+        }
+        obj.rectTransform.sizeDelta = defaultSize;
+    }
+	
+	
+    public void Bounce(Image img)
+    {
+        StartCoroutine(BounceRoutine(img, 0.125f, 1.25f));      
+    }
+
+    public List<int> indicesBouncing = new List<int>();
+
+    public IEnumerator DropIn(bool firstDance)
+    {
+        if (firstDance)
+        {
+            float timeElapsed = 0;
+            slideInAS.time = 0.25f;
+            slideInAS.Play();
+            while (timeElapsed < 1.1f)
+            {
+                for (int i = 0; i < arrowMoveIndicators.Count(); i++)
+                {
+                    arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition = new Vector3(arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition.x,
+                                                                            originalLocalPositionArrowMoveIndicatorsY + 200 - Mathf.Min(200, ((timeElapsed * arrowMoveIndicators.Count()) / (i + 1)) * 200),
+                                                                            arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition.z);
+                    numberIndicators[i].GetComponent<RectTransform>().localPosition = new Vector3(numberIndicators[i].GetComponent<RectTransform>().localPosition.x,
+                                                                            originalLocalPositionNumberIndicatorsY + 200 - Mathf.Min(200, ((timeElapsed * arrowMoveIndicators.Count()) / (i + 1)) * 200),
+                                                                            numberIndicators[i].GetComponent<RectTransform>().localPosition.z);
+                    
+                    if (Mathf.Min(200, ((timeElapsed * arrowMoveIndicators.Count()) / (i + 1)) * 200) >= 200 & !indicesBouncing.Contains(i))
+                    {
+                        indicesBouncing.Add(i);
+                        Bounce(arrowMoveIndicators[i].GetComponent<Image>());
+                        Bounce(numberIndicators[i].GetComponent<Image>());
+                    }
+                }
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }  
+        }
+        for (int i = 0; i < arrowMoveIndicators.Count(); i++)
+        {
+            arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition = new Vector3(arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition.x,
+                                                                    originalLocalPositionArrowMoveIndicatorsY,
+                                                                    arrowMoveIndicators[i].GetComponent<RectTransform>().localPosition.z);
+            numberIndicators[i].GetComponent<RectTransform>().localPosition = new Vector3(numberIndicators[i].GetComponent<RectTransform>().localPosition.x,
+                                                                    originalLocalPositionNumberIndicatorsY,
+                                                                    numberIndicators[i].GetComponent<RectTransform>().localPosition.z);          
+        }
+        // Initiate Countdown  
+        indicesBouncing.Clear();
+        StartCoroutine(Countdown(firstDance));
+    }
+
+    public bool countingDown;
+
+    public IEnumerator Countdown(bool firstDance)
+    {
+        if (firstDance)
+        {
+            // Initiate Countdown
+            for (int i = 1; i <= 3; i++)
+            {
+                /*
+                countdownText.text = (3 - (i - 1)).ToString();
+                if (!countdownText.gameObject.activeSelf)
+                {
+                    countdownText.gameObject.SetActive(true);
+                }
+                */
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.topText = (3 - (i - 1)).ToString();
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+                //
+                metronomeAudio.time = 0;
+                metronomeAudio.Play();
+                float timeElapsed = 0;
+                while (timeElapsed < 1)
+                {
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+            }
+        }
+        countdownText.gameObject.SetActive(false);
+        arrowMoveIndicators[0].GetComponent<Image>().color = new Color(1, 1, 1, 1);
+        numberIndicators[0].GetComponent<Image>().color = new Color(1, 1, 1, 1);
+        StartCoroutine(Dancing(firstDance));
+        countingDown = false;
+    }
+
+    public void ConfigurePlayerForDance()
+    {
+        gameMaster.story.sceneCamera.GetComponent<AudioListener>().enabled = false;
+        gameMaster.story.mainCamera.GetComponent<AudioListener>().enabled = true;
+        gameMaster.story.sceneCamera.gameObject.SetActive(true);
+        gameMaster.story.hannahCutscenes.SetActive(true);
+        gameMaster.player.SetActive(false);
+        gameMaster.story.mainCamera.GetComponent<AudioListener>().enabled = false;
+        gameMaster.story.sceneCamera.GetComponent<AudioListener>().enabled = true;
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceIdle", true);
+    }
+
+    public IEnumerator BeginDance(string danceTitle, List<InputAction> dance, List<int> taps, bool firstDance)
+    {
+        float timeElapsed = 0;
+        if (firstDance)
+        {
+            if(gameMaster.story.fadePanel.GetComponent<Image>().color != new Color(0, 0, 0, 1))
+            {
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+                gameMaster.story.fadePanel.SetActive(true);
+                timeElapsed = 0;
+                while (timeElapsed < 1)
+                {
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, Mathf.Min(1, timeElapsed / 1));
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+            }
+            SetMaracaMaterial();
+            dancingHenry.GetComponent<Animator>().SetBool("dancing", true);
+            dancingHenry.SetActive(true);
+            dancingHenry.transform.position = gameMaster.story.henryCutscene.transform.position;
+            dancingHenry.transform.eulerAngles = gameMaster.story.henryCutscene.transform.eulerAngles;
+            if(gameMaster.story.currentStoryIndex == 7)
+            {
+                dancingHenry.transform.position = new Vector3(48.83f, dancingHenry.transform.position.y, dancingHenry.transform.position.z);
+                dancingHenry.transform.eulerAngles = new Vector3(0, -180, 0);
+            }
+            gameMaster.story.henryCutscene.SetActive(false);
+        }
+        ConfigurePlayerForDance();
+        if (firstDance)
+        {
+            dancingHenry.GetComponent<Animator>().SetBool("dancing", true);
+            timeElapsed = 0;
+            while (timeElapsed < 1)
+            {
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+            gameMaster.story.fadePanel.SetActive(true);
+            timeElapsed = 0;
+            while (timeElapsed < 1)
+            {
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1 - Mathf.Min(1, timeElapsed / 1));
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+        }
+        dancingHenry.GetComponent<Animator>().SetBool("dancing", true);
+        danceMenu.SetActive(true);
+        GeneralDanceConfiguration(danceTitle, dance, taps, firstDance);
+        yield return null;
+    }
+
+    public void LoadDance(string danceTitle, List<InputAction> dance, List<int> taps, float speedRatioLocal, int repetitionsLocal, bool firstDance, bool repeatDance = false)
+    {
+        if (firstDance)
+        {
+            countingDown = true;
+            if (!repeatDance)
+            {
+                if (gameMaster.maxPossibleScore >= 0)
+                {
+                    maxPossibleScoreBefore = gameMaster.maxPossibleScore;
+                }
+                else
+                {
+                    maxPossibleScoreBefore = 0;
+                }
+                //
+                if(gameMaster.totalScore >= 0)
+                {
+                    totalScoreBefore = gameMaster.totalScore;
+                }
+                else
+                {
+                    totalScoreBefore = 0;
+                }
+            }
+        }
+        if (debugDanceOff)
+        {
+            gameMaster.currentDanceSuccessful = true;
+        }
+        else
+        {
+            if (gameMaster.slowEnabled)
+            {
+                slowDownBar.gameObject.SetActive(true);
+            }
+            else
+            {
+                slowDownBar.gameObject.SetActive(false);
+            }
+            if (firstDance)
+            {
+                slowed = false;
+                defaultSpeedRatio = danceSequenceSpeedRatios[currentSequenceIndex];
+                //defaultSpeedRatio = speedRatioLocal;
+                slowDownBar.SetValue(0);
+                currentSlowPoints = 0;
+                successfulRepititions = 0;
+            }
+            if (complexSpellNames.Contains(danceTitle))
+            {
+                GenerateSpell(danceTitle);
+                if (danceTitle == "Fix Spell")
+                {
+                    //danceSequenceKeys = new List<List<UnityEngine.InputSystem.InputAction>>() { fixSpell };
+                    //danceSequenceTaps = new List<List<int>>() { fixSpellTaps };
+                    dance = fixSpell;
+                    taps = fixSpellTaps;
+                }
+                else if (danceTitle == "Ignite Spell")
+                {
+                    //danceSequenceKeys = new List<List<UnityEngine.InputSystem.InputAction>>() { igniteSpell };
+                    //danceSequenceTaps = new List<List<int>>() { igniteSpellTaps };
+                    dance = igniteSpell;
+                    taps = igniteSpellTaps;
+                }
+                else if (danceTitle == "Extinguish Spell")
+                {
+                    //danceSequenceKeys = new List<List<UnityEngine.InputSystem.InputAction>>() { extinguishSpell };
+                    //danceSequenceTaps = new List<List<int>>() { extinguishSpellTaps };
+                    dance = extinguishSpell;
+                    taps = extinguishSpellTaps;
+                }
+            }
+            if (debugDanceEasy)
+            {
+                if (slowed)
+                {
+                    speedRatio = 0.75f;
+                }
+                else
+                {
+                    speedRatio = 0.75f;
+                }
+                defaultSpeedRatio = 0.75f;
+                repititions = repetitionsLocal;
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().speed = 1;
+                speedIndicator.text = "X" + speedRatio.ToString() + " SPEED";
+                StartCoroutine(BeginDance(danceTitle, dance, taps, firstDance));
+            }
+            else
+            {
+                if (slowed)
+                {
+                    speedRatio = 0.5f * defaultSpeedRatio;
+                    //speedRatio = 0.5f * speedRatioLocal;
+                }
+                else
+                {
+                    speedRatio = defaultSpeedRatio;
+                    //speedRatio = speedRatioLocal;
+                }
+                if (!firstDance)
+                {
+                    if (speedRatioLocal > defaultSpeedRatio)
+                    {
+                        SlowOrSpeedDisplay(true, true, false);
+                    }
+                    else if (speedRatioLocal < defaultSpeedRatio)
+                    {
+                        SlowOrSpeedDisplay(true, false, true);
+                    }
+                }
+                defaultSpeedRatio = danceSequenceSpeedRatios[currentSequenceIndex];
+                //defaultSpeedRatio = speedRatioLocal; /////
+                repititions = repetitionsLocal;
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().speed = 1;
+                speedIndicator.text = "X" + speedRatio.ToString() + " SPEED";
+                StartCoroutine(BeginDance(danceTitle, dance, taps, firstDance));
+            }
+
+        }
+    }
+
+    public void LiveConfigureArrows(int currentIndex)
+    {
+        for (int i = 0; i < arrowMoveIndicators.Count(); i++)
+        {     
+            arrowMoveIndicators[i].GetComponent<Image>().color = new Color(1, 1, 1, 0.50f);
+            numberIndicators[i].GetComponent<Image>().color = new Color(1, 1, 1, 0.50f);         
+        }
+        if(currentIndex < arrowMoveIndicators.Count() - 1)
+        {
+            arrowMoveIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 1);
+            numberIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 1);
+        }
+    }
+
+    public void EndDanceCommon()
+    {
+        danceMenu.SetActive(false);
+        currentKeyInSequence = null;
+        SetDanceBools(-1);
+        danceMusicAudio.Stop();
+        gameMaster.playerIsDancing = false;
+    }
+
+    public void ClearForNewSequence()
+    {
+        currentSequenceIndex = 0;
+        danceNames.Clear();
+        danceSequenceKeys.Clear();
+        danceSequenceTaps.Clear();
+        danceSequenceSpeedRatios.Clear();
+        danceSequenceRepititions.Clear();
+    }
+
+    public MessageEvent retryDanceEvent;
+    public TextMeshProUGUI totalScoreText;
+    List<DamageNumber> dmgNumbers = new List<DamageNumber>();
+    public int points = 0;
+    public int moves = 0;
+
+    public int relevantMax;
+    public int relevantEarned;
+    public int percent;
+
+    public AudioClip correctMoveSound;
+    public AudioClip comboSound;
+    public AudioClip pointCountSound;
+
+    public TextMeshProUGUI percentageToBeat;
+
+    public int inRowNumber;
+
+    public void GeneratePoints(float time, int order)
+    {
+        int score = 0;
+        if (order == 1)
+        {
+            if (time <= Mathf.Max(0.10f, 0.10f * (1 / speedRatio)))
+            {
+                score = 250;
+                inRowNumber += 1;
+            }
+            else
+            {
+                score = (int)(250 - 250 * Mathf.Min(1, (time - 0.10f) / 0.90f));
+                inRowNumber = 0;
+            }
+        }
+        else if (order == 2)
+        {
+            if (time <= Mathf.Max(0.20f, 0.20f * (1 / speedRatio)))
+            {
+                score = 250;
+                inRowNumber += 1;
+            }
+            else
+            {
+                score = (int)(250 - 250 * Mathf.Min(1, (time - 0.20f) / 0.8f));
+                inRowNumber = 0;
+            }
+        }
+        else if (order == 3)
+        {
+            if (time <= Mathf.Max(0.30f, 0.30f * (1 / speedRatio)))
+            {
+                score = 250;
+                inRowNumber += 1;
+            }
+            else
+            {
+                score = (int)(250 - 250 * Mathf.Min(1, (time - 0.30f) / 0.70f));
+                inRowNumber = 0;
+            }
+        }
+        moves += 1;
+        points += score;
+        if (slowDownBar.gameObject.activeSelf)
+        {
+            if (slowed)
+            {
+                if (currentSlowPoints == 0)
+                {
+                    speedRatio = defaultSpeedRatio;
+                    slowDownBar.SetValue(Mathf.Max(0));
+                    slowed = false;
+                    SlowOrSpeedDisplay();
+                    speedUpAS.time = 0;
+                    speedUpAS.Play();
+                }
+                else
+                {
+                    speedRatio = 0.5f * defaultSpeedRatio;
+                    currentSlowPoints = Mathf.Max(0, currentSlowPoints - (250 - score));
+                }
+            }
+            else
+            {
+                speedRatio = defaultSpeedRatio;
+                currentSlowPoints = Mathf.Min(2000, currentSlowPoints + score);
+            }
+            slowDownBar.SetValue(Mathf.Max(0, Mathf.Min(1, currentSlowPoints / 2000f)));
+        }
+        dmgNmbMesh.transform.position = gameMaster.story.hannahCutscenes.transform.position + 0.5f * gameMaster.story.hannahCutscenes.transform.forward + 0.5f * gameMaster.story.hannahCutscenes.transform.up;
+        DamageNumber damageNumber = dmgNmbMesh.Spawn(dmgNmbMesh.transform.position, score);
+        damageNumber.transform.position = dmgNmbMesh.transform.position;
+        //
+        int bonus = 0;
+        if (inRowNumber > 1)
+        {
+            bonus = Mathf.Max(0, Mathf.Min(moves * 250 - points, 25 * (inRowNumber - 1)));
+            points += Mathf.Max(0, Mathf.Min(moves * 250 - points, 25 * (inRowNumber - 1)));
+            // Goober Reacts
+            DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+            newDamageNumber.permanent = false;
+            newDamageNumber.enableTopText = true;
+            newDamageNumber.enableBottomText = true;
+            List<string> comboMessages = new List<string>() { "NICE!", "WOW!", "COOL!", "NEAT!" };
+            newDamageNumber.topText = comboMessages[rnd.Next(0, comboMessages.Count())];
+            newDamageNumber.bottomText = "";
+            newDamageNumber.UpdateText();
+            newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+            newDamageNumber.gameObject.SetActive(true);
+            // Finish
+            damageNumber.enableTopText = true;
+            damageNumber.enableBottomText = true;
+            damageNumber.topText = "COMBO";
+            //
+            if (inRowNumber > 3)
+            {
+                damageNumber.bottomText = "X" + inRowNumber.ToString();
+            }
+            else if (inRowNumber == 2)
+            {
+                damageNumber.bottomText = "DOUBLE";
+            }
+            else if (inRowNumber == 3)
+            {
+                damageNumber.bottomText = "TRIPLE";
+            }
+            PlayGooberNote();
+        }
+        else
+        {
+            damageNumber.rightText = "";
+            damageNumber.topText = "";
+            damageNumber.bottomText = "";
+        }
+        if(bonus > 0)
+        {
+            DamageNumber damageNumberBonus = dmgNmbMesh.Spawn(dmgNmbMesh.transform.position, bonus); 
+            damageNumberBonus.transform.position = dmgNmbMesh.transform.position;
+            damageNumberBonus.enableRightText = true;
+            damageNumberBonus.rightText = "BONUS ";
+            damageNumberBonus.topText = "";
+            damageNumberBonus.bottomText = "";
+            damageNumberBonus.UpdateText();
+            damageNumberBonus.gameObject.SetActive(true);
+            PlayGooberNote();
+        }
+        //
+        damageNumber.UpdateText();
+        damageNumber.gameObject.SetActive(true);
+        //damageNumber.transform.position += 0.75f * gameMaster.story.hannahCutscenes.transform.forward;
+        //damageNumber.transform.LookAt(gameMaster.sceneCamera.transform);
+        //damageNumber.transform.eulerAngles += new Vector3(0, 180, 0); 
+        // Play Noise
+        if (inRowNumber <= 1)
+        {
+            gameMaster.story.sceneSoundFX.clip = correctMoveSound;
+            gameMaster.story.sceneSoundFX.time = 0;
+            gameMaster.story.sceneSoundFX.Play();
+        }
+        else if (inRowNumber > 1)
+        {
+            gameMaster.story.sceneSoundFX.clip = comboSound;
+            gameMaster.story.sceneSoundFX.time = 0;
+            gameMaster.story.sceneSoundFX.Play();
+        }
+    }
+
+    public void ResetPoints()
+    {
+        points = 0;
+        moves = 0;
+        for (int i = 0; i <= dmgNumbers.Count - 1; i++)
+        {
+            dmgNumbers[i].DestroyDNP();
+        }
+        dmgNumbers.Clear();
+    }
+
+    public bool addingPoints;
+
+    int totalScoreBefore;
+    int pointsBefore;
+
+    int maxPossibleScoreBefore;
+
+    public IEnumerator AddPointsToTotal()
+    {
+        //maxPossibleScoreBefore = gameMaster.maxPossibleScore;
+        gameMaster.maxPossibleScore = maxPossibleScoreBefore + moves * 250;
+        //gameMaster.totalScore = totalScoreBefore;
+        //gameMaster.maxPossibleScore = moves * 250;
+        //
+        float totalTime = Mathf.Max(1, points / 2500f);
+        float timeElapsed = 0;
+        int pointSegment = Mathf.Min(2500, points);
+        pointsBefore = points;
+        //
+        dmgNmbMesh.transform.position = gameMaster.story.hannahCutscenes.transform.position + 0.5f * gameMaster.story.hannahCutscenes.transform.forward + 0.5f * gameMaster.story.hannahCutscenes.transform.up;
+        DamageNumber damageNumber = dmgNmbMesh.Spawn(dmgNmbMesh.transform.position, pointsBefore);
+        damageNumber.permanent = true;
+        damageNumber.transform.position = dmgNmbMesh.transform.position;
+        damageNumber.topText = "";
+        damageNumber.bottomText = "";
+        damageNumber.UpdateText();
+        damageNumber.gameObject.SetActive(true);
+        //damageNumber.transform.position += 0.5f * gameMaster.story.hannahCutscenes.transform.forward;
+        //damageNumber.transform.LookAt(gameMaster.sceneCamera.transform);
+        //damageNumber.transform.eulerAngles += new Vector3(0, 180, 0);
+        gameMaster.story.sceneSoundFX.clip = correctMoveSound;
+        gameMaster.story.sceneSoundFX.time = 0;
+        gameMaster.story.sceneSoundFX.Play();
+        //
+        totalScoreText.text = totalScoreBefore.ToString() + "/" + gameMaster.maxPossibleScore + " (" + ((int)((gameMaster.totalScore * 100f) / gameMaster.maxPossibleScore)).ToString() + "%)"; ;
+        totalScoreText.gameObject.SetActive(true);
+        //
+        timeElapsed = 0;
+        while (timeElapsed <= 1)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        timeElapsed = 0;
+        while (timeElapsed <= totalTime & points > 0)
+        {
+            if (!gameMaster.story.sceneSoundFX.isPlaying)
+            {
+                gameMaster.story.sceneSoundFX.clip = pointCountSound;
+                gameMaster.story.sceneSoundFX.time = 0;
+                gameMaster.story.sceneSoundFX.Play();
+            }
+            int amount = Mathf.Min(points, (int)(Time.deltaTime * pointSegment));
+            points = Mathf.Max(0, points - amount);
+            gameMaster.totalScore = Mathf.Min(totalScoreBefore + pointsBefore, gameMaster.totalScore + amount);
+            totalScoreText.text = gameMaster.totalScore.ToString() + "/" + gameMaster.maxPossibleScore + " (" + ((int) ((gameMaster.totalScore * 100f)/gameMaster.maxPossibleScore)).ToString() + "%)";
+            damageNumber.number = points;
+            damageNumber.enableBottomText = true;
+            damageNumber.bottomText = "OUT OF " + (moves * 250f).ToString();
+            damageNumber.UpdateText();
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        damageNumber.number = 0;
+        damageNumber.permanent = false;
+        points = 0;
+        gameMaster.totalScore = totalScoreBefore + pointsBefore;
+        totalScoreText.text = gameMaster.totalScore.ToString() + "/" + gameMaster.maxPossibleScore + " (" + ((int)((gameMaster.totalScore * 100f) / gameMaster.maxPossibleScore)).ToString() + "%)";
+        damageNumber.DestroyDNP();
+        timeElapsed = 0;
+        while(timeElapsed <= 2)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        // Percent Display
+        dmgNmbMesh.transform.position = gameMaster.story.hannahCutscenes.transform.position + 0.5f * gameMaster.story.hannahCutscenes.transform.forward + 0.5f * gameMaster.story.hannahCutscenes.transform.up;
+        DamageNumber newDamageNumber = dmgNmbMesh.Spawn(dmgNmbMesh.transform.position, (int) (pointsBefore * 100f / (moves * 250f)));
+        //
+        int currentPercent = (int)(pointsBefore * 100f / (moves * 250f));
+        if (pointsBefore < moves * 250)
+        {
+            currentPercent = Mathf.Min(99, currentPercent);
+        }
+        else
+        {
+            currentPercent = 100;
+        }
+        //
+        if (percent < currentPercent)
+        {
+            relevantMax = gameMaster.maxPossibleScore;
+            relevantEarned = gameMaster.totalScore;
+            percent = currentPercent;
+            percentageToBeat.text = currentPercent.ToString() + "%";
+        }
+        newDamageNumber.permanent = true;
+        newDamageNumber.enableRightText = true;
+        newDamageNumber.rightText = "%";
+        newDamageNumber.topText = "";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = dmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        //newDamageNumber.transform.position += 0.5f * gameMaster.story.hannahCutscenes.transform.forward;
+        //newDamageNumber.transform.LookAt(gameMaster.sceneCamera.transform);
+        //newDamageNumber.transform.eulerAngles += new Vector3(0, 180, 0);
+        gameMaster.story.sceneSoundFX.clip = correctMoveSound;
+        gameMaster.story.sceneSoundFX.time = 0;
+        gameMaster.story.sceneSoundFX.Play();
+        timeElapsed = 0;
+        while (timeElapsed <= 2)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        newDamageNumber.permanent = false;
+        newDamageNumber.DestroyDNP();
+        timeElapsed = 0;
+        while (timeElapsed <= 2)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        //
+        totalScoreText.gameObject.SetActive(false);
+        ResetPoints();
+        addingPoints = false;
+        yield return null;
+    }
+
+    List<string> succesMessages = new List<string>()
+    {
+        "I knew you could do it!",
+        "Smooth as tuna mousse.",
+        "Classy as caviar.",
+        "Satisfactory as sushi.",
+        "As fancy as fresh fish.",
+        "Slicker than a sewer rat.",
+        "Cool as a cat."
+    };
+
+    public IEnumerator DanceSuccess()
+    {
+        inRowNumber = 0;
+        successfulRepititions += 1;
+        if(successfulRepititions == repititions)
+        { 
+            currentSequenceIndex += 1;
+            if (currentSequenceIndex == danceSequenceKeys.Count)
+            {               
+                //
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = "SUCCESS!";
+                PlayGooberNote();
+                //
+                int currentPercent = (int)(points * 100f / (moves * 250f));
+                if(points < moves * 250)
+                {
+                    currentPercent = Mathf.Min(99, currentPercent);
+                }
+                else
+                {
+                    currentPercent = 100;
+                }
+                //
+                bool wasComplex = false;
+                for (int k = 0; k <= danceNames.Count - 1; k++)
+                {
+                    if (complexSpellNames.Contains(danceNames[k]))
+                    {
+                        wasComplex = true;
+                        break;
+                    }
+                }
+                if (wasComplex)
+                {
+                    if (currentPercent >= 90)
+                    {
+                        gameMaster.achievements.AwardAchievement(1);
+                        gameMaster.achievements.AwardAchievement(3);
+                    }
+                    if (currentPercent >= 100)
+                    {
+                        gameMaster.achievements.AwardAchievement(2);
+                        gameMaster.achievements.AwardAchievement(4);
+                    }
+                }
+                else
+                {
+                    if (currentPercent >= 90)
+                    {
+                        gameMaster.achievements.AwardAchievement(1);
+                    }
+                    if (currentPercent >= 100)
+                    {
+                        gameMaster.achievements.AwardAchievement(2);
+                    }
+                }
+                //
+                if (currentPercent >= 50 & currentPercent < 60)
+                {
+                    newDamageNumber.bottomText = "YOU DID IT!";
+                }
+                else if (currentPercent >= 60 & currentPercent < 70)
+                {
+                    newDamageNumber.bottomText = "ALRIGHT!";
+                }
+                else if (currentPercent >= 70 & currentPercent < 80)
+                {
+                    newDamageNumber.bottomText = "GOOD JOB!";
+                }
+                else if (currentPercent >= 80 & currentPercent < 90)
+                {
+                    newDamageNumber.bottomText = "GREAT JOB!";
+                }
+                else if (currentPercent >= 90 & currentPercent < 95)
+                {
+                    newDamageNumber.bottomText = "FANTASTIC!";
+                }
+                else if (currentPercent >= 95 & currentPercent < 100)
+                {
+                    newDamageNumber.bottomText = "MAGNIFICENT!";
+                }
+                else if (currentPercent == 100)
+                {
+                    newDamageNumber.bottomText = "WOW! SPECTACULAR!";
+                }
+                else
+                {
+                    newDamageNumber.bottomText = "";
+                }
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+                //
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().speed = 1;
+                EndDanceCommon();
+                // Play Success Sound
+                gameMaster.story.sceneSoundFX.clip = successSound;
+                gameMaster.story.sceneSoundFX.time = 0;
+                gameMaster.story.sceneSoundFX.Play();
+                // Bow and Juggle
+                dancingHenry.GetComponent<Animator>().SetBool("juggle", true);
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceSuccess", true);
+                float timeElapsed = 0;
+                while (timeElapsed < 2f)
+                {
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceSuccess", false);
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceIdle", false);
+                while (timeElapsed < 5)
+                {
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                // Add Points to Total
+                addingPoints = true;
+                StartCoroutine(AddPointsToTotal());
+                while (addingPoints)
+                {
+                    yield return null;
+                }
+                // Play Success Message
+                successMessage.messages[0] = succesMessages[rnd.Next(0, succesMessages.Count)];
+                gameMaster.story.PlayLockedMessages(successMessage);
+                while (gameMaster.story.messageSystem.currentMessageIndex <= gameMaster.story.messageSystem.currentMessageEvent.messages.Count - 1)
+                {
+                    if (gameMaster.story.messageSystem.messagesFinished)
+                    {
+                        break;
+                    }
+                    yield return null;
+                }
+                // Play Retry Message                
+                gameMaster.story.PlayLockedMessages(retryDanceEvent);
+                while (!gameMaster.story.messageSystem.responded)
+                {
+                    if (gameMaster.story.messageSystem.messagesFinished)
+                    {
+                        break;
+                    }
+                    yield return null;
+                }
+                if(gameMaster.story.messageSystem.responseIndex == 0)
+                {
+                    totalScoreText.text = totalScoreBefore.ToString();
+                    //
+                    gameMaster.maxPossibleScore = maxPossibleScoreBefore;
+                    gameMaster.totalScore = totalScoreBefore;
+                    //
+                    totalScoreText.text = gameMaster.totalScore.ToString();
+                    percentageToBeat.gameObject.SetActive(true);
+                    gameMaster.currentDanceSuccessful = false;
+                    gameMaster.playerIsDancing = true;
+                    currentSequenceIndex = 0;
+                    successfulRepititions = 0;
+                    currentSlowPoints = 0;
+                    points = 0;
+                    moves = 0;
+                    slowed = false;
+                    inRowNumber = 0;
+                    LoadDance(danceNames[currentSequenceIndex], danceSequenceKeys[currentSequenceIndex], danceSequenceTaps[currentSequenceIndex], danceSequenceSpeedRatios[currentSequenceIndex], danceSequenceRepititions[currentSequenceIndex], true, true);
+                }
+                else if(gameMaster.story.messageSystem.responseIndex == 1)
+                {
+                    //totalScoreBefore = gameMaster.totalScore;
+                    //
+                    gameMaster.maxPossibleScore = relevantMax;
+                    gameMaster.totalScore = relevantEarned;
+                    //
+                    percent = 0; 
+                    percentageToBeat.gameObject.SetActive(false);
+                    //
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+                    gameMaster.story.fadePanel.SetActive(true);
+                    timeElapsed = 0;
+                    while (timeElapsed < 1)
+                    {
+                        gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, Mathf.Min(1, timeElapsed / 1));
+                        timeElapsed += Time.deltaTime;
+                        yield return null;
+                    }
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+                    //
+                    dancingHenry.SetActive(false);
+                    gameMaster.story.henryCutscene.SetActive(true);
+                    //
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+                    gameMaster.story.fadePanel.SetActive(true);
+                    timeElapsed = 0;
+                    while (timeElapsed < 1)
+                    {
+                        gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1 - Mathf.Min(1, timeElapsed / 1));
+                        timeElapsed += Time.deltaTime;
+                        yield return null;
+                    }
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+                    //
+                    gameMaster.currentDanceSuccessful = true;
+                }             
+            }
+            else
+            {
+                successfulRepititions = 0;
+                LoadDance(danceNames[currentSequenceIndex], danceSequenceKeys[currentSequenceIndex], danceSequenceTaps[currentSequenceIndex], danceSequenceSpeedRatios[currentSequenceIndex], danceSequenceRepititions[currentSequenceIndex], false);
+            } 
+        }
+        else
+        {
+            LoadDance(danceTitle.text, arrowKeySequence, tapsSequence, defaultSpeedRatio, repititions, false);
+            //LoadDance(danceTitle.text, arrowKeySequence, tapsSequence, speedRatio, repititions, false);
+        } 
+        yield return null;
+    }
+
+    bool warning;
+
+    public IEnumerator ContinuationWarning()
+    {
+        string nextWarning = "";
+        if(danceSequenceKeys.Count > 1)
+        {
+            if (currentSequenceIndex < danceSequenceKeys.Count - 1)
+            {
+                if (danceSequenceKeys[currentSequenceIndex] == danceSequenceKeys[currentSequenceIndex + 1] & !complexSpellNames.Contains(danceNames[currentSequenceIndex + 1]))
+                {
+                    nextWarning = "You have to do it again!";
+                }
+                else if (danceSequenceKeys[currentSequenceIndex] == danceSequenceKeys[currentSequenceIndex + 1] & complexSpellNames.Contains(danceNames[currentSequenceIndex + 1]))
+                {
+                    nextWarning = "It's not done yet!";
+                }
+                else if (danceSequenceKeys[currentSequenceIndex] != danceSequenceKeys[currentSequenceIndex + 1])
+                {
+                    nextWarning = "The next dance is different!";
+                }
+                //
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = nextWarning;
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+                float timeElapsed = 0;
+                while (timeElapsed < 1f)
+                {
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                //
+                if (danceSequenceSpeedRatios[currentSequenceIndex] < danceSequenceSpeedRatios[currentSequenceIndex + 1])
+                {
+                    nextWarning = "It's gonna be faster!";
+                }
+                else if (danceSequenceSpeedRatios[currentSequenceIndex] > danceSequenceSpeedRatios[currentSequenceIndex + 1])
+                {
+                    nextWarning = "It's gonna be slower!";
+                }
+                else
+                {
+                    nextWarning = "It'll be the same speed!";
+                }
+                newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = nextWarning;
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+            }
+        }
+        else if (danceSequenceKeys.Count == 1 & danceSequenceRepititions[0] > 1 & successfulRepititions < repititions - 1)
+        {
+            nextWarning = "You have to do it again!";
+            DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+            newDamageNumber.permanent = false;
+            newDamageNumber.enableTopText = true;
+            newDamageNumber.enableBottomText = true;
+            newDamageNumber.topText = nextWarning;
+            newDamageNumber.bottomText = "";
+            newDamageNumber.UpdateText();
+            newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+            newDamageNumber.gameObject.SetActive(true);
+        } 
+        warning = false;
+    }
+
+    public void SlowOrSpeedDisplay(bool loaded = false, bool faster = false, bool slower = false)
+    {       
+        if(loaded == true)
+        {
+            if(faster)
+            {
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = "IT'S FASTER NOW!";
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+            }
+            else if (slower)
+            {
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = "NOW IT'S SLOWER!";
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+            }
+        }
+        else
+        {
+            if (slowed == true)
+            {
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = "SLOW IT DOWN!";
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+            }
+            else if (slowed == false)
+            {
+                DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+                newDamageNumber.permanent = false;
+                newDamageNumber.enableTopText = true;
+                newDamageNumber.enableBottomText = true;
+                newDamageNumber.topText = "SPEED IT UP!";
+                newDamageNumber.bottomText = "";
+                newDamageNumber.UpdateText();
+                newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+                newDamageNumber.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    public void TooManyDisplay()
+    {
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = "TOO MANY!";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        PlayGooberNote();
+    }
+
+    public void HoldYourHorsesDisplay()
+    {
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = "HOLD YOUR HORSES!";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        PlayGooberNote();
+    }
+
+    public void StayFocusedDisplay()
+    {
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = "STAY FOCUSED!";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        PlayGooberNote();
+    }
+
+    public void TooFewDisplay()
+    {
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = "TOO FEW!";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        PlayGooberNote();
+    }
+
+    public void WatchYourStepDisplay()
+    {
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        newDamageNumber.topText = "WATCH YOUR STEP!";
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        PlayGooberNote();
+    }
+
+    public IEnumerator DanceFailure()
+    {
+        inRowNumber = 0;
+        DamageNumber newDamageNumber = gooberDmgNmbMesh.Spawn(gooberDmgNmbMesh.transform.position);
+        newDamageNumber.permanent = false;
+        newDamageNumber.enableTopText = true;
+        newDamageNumber.enableBottomText = true;
+        List<string> failureMessages = new List<string>() { "UH OH!", "OH NO!", "OOPS!", "OOPSIE!" };
+        newDamageNumber.topText = failureMessages[rnd.Next(0, failureMessages.Count())];
+        newDamageNumber.bottomText = "";
+        newDamageNumber.UpdateText();
+        newDamageNumber.transform.position = gooberDmgNmbMesh.transform.position;
+        newDamageNumber.gameObject.SetActive(true);
+        //
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().speed = 1;
+        successfulRepititions = 0;
+        EndDanceCommon();
+        // Play Failure Sound
+        gameMaster.story.sceneSoundFX.clip = failureSound;
+        gameMaster.story.sceneSoundFX.time = 0;
+        gameMaster.story.sceneSoundFX.Play();
+        // Play Frustrated Animation
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceFailure", true);
+        float timeElapsed = 0;
+        while (timeElapsed < 2f)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceFailure", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("danceIdle", false);
+        while (timeElapsed < 6f)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        if (percentageToBeat.gameObject.activeSelf)
+        {
+            // Play Retry Message                
+            gameMaster.story.PlayLockedMessages(retryDanceEvent);
+            while (!gameMaster.story.messageSystem.responded)
+            {
+                if (gameMaster.story.messageSystem.messagesFinished)
+                {
+                    break;
+                }
+                yield return null;
+            }
+            if (gameMaster.story.messageSystem.responseIndex == 0)
+            {
+                totalScoreText.text = totalScoreBefore.ToString();
+                //
+                gameMaster.maxPossibleScore = maxPossibleScoreBefore;
+                gameMaster.totalScore = totalScoreBefore;
+                //
+                totalScoreText.text = gameMaster.totalScore.ToString();
+                percentageToBeat.gameObject.SetActive(true);
+                gameMaster.currentDanceSuccessful = false;
+                gameMaster.playerIsDancing = true;
+                currentSequenceIndex = 0;
+                successfulRepititions = 0;
+                currentSlowPoints = 0;
+                points = 0;
+                moves = 0;
+                slowed = false;
+                inRowNumber = 0;
+                LoadDance(danceNames[currentSequenceIndex], danceSequenceKeys[currentSequenceIndex], danceSequenceTaps[currentSequenceIndex], danceSequenceSpeedRatios[currentSequenceIndex], danceSequenceRepititions[currentSequenceIndex], true, true);
+            }
+            else if (gameMaster.story.messageSystem.responseIndex == 1)
+            {
+                //totalScoreBefore = gameMaster.totalScore;
+                //
+                gameMaster.maxPossibleScore = relevantMax;
+                gameMaster.totalScore = relevantEarned;
+                //
+                percent = 0;
+                percentageToBeat.gameObject.SetActive(false);
+                //
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+                gameMaster.story.fadePanel.SetActive(true);
+                timeElapsed = 0;
+                while (timeElapsed < 1)
+                {
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, Mathf.Min(1, timeElapsed / 1));
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+                //
+                dancingHenry.SetActive(false);
+                gameMaster.story.henryCutscene.SetActive(true);
+                //
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1);
+                gameMaster.story.fadePanel.SetActive(true);
+                timeElapsed = 0;
+                while (timeElapsed < 1)
+                {
+                    gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 1 - Mathf.Min(1, timeElapsed / 1));
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                gameMaster.story.fadePanel.GetComponent<Image>().color = new Color(0, 0, 0, 0);
+                //
+                gameMaster.currentDanceSuccessful = true;
+            }
+        }
+        else
+        {
+            // Play Failure Message
+            gameMaster.story.PlayLockedMessages(failureMessage);
+            while (gameMaster.story.messageSystem.currentMessageIndex <= gameMaster.story.messageSystem.currentMessageEvent.messages.Count - 1)
+            {
+                if (gameMaster.story.messageSystem.messagesFinished)
+                {
+                    break;
+                }
+                yield return null;
+            }
+            gameMaster.currentDanceSuccessful = false;
+            //
+            currentSlowPoints = 0;
+            slowed = false;
+            inRowNumber = 0;
+            // Restart Dance
+            gameMaster.playerIsDancing = true;
+            currentSequenceIndex = 0;
+            successfulRepititions = 0;
+            LoadDance(danceNames[currentSequenceIndex], danceSequenceKeys[currentSequenceIndex], danceSequenceTaps[currentSequenceIndex], danceSequenceSpeedRatios[currentSequenceIndex], danceSequenceRepititions[currentSequenceIndex], true);
+        }
+        yield return null;
+    }
+
+    public void SetDanceBools(int currentIndex)
+    {
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance01", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance02", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance03", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance04", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance05", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance06", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance07", false);
+        gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance08", false);
+        //
+        if (currentKeyInSequence == gameMaster.mainMenuC.danceUp)
+        {
+            if (tapsSequence[currentIndex] == 1)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance01", true);
+            }
+            else if (tapsSequence[currentIndex] == 2)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance05", true);
+            }
+            else if (tapsSequence[currentIndex] == 3)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance01", true);
+            }
+        }
+        else if (currentKeyInSequence == gameMaster.mainMenuC.danceDown)
+        {
+            if (tapsSequence[currentIndex] == 1)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance02", true);
+            }
+            else if (tapsSequence[currentIndex] == 2)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance06", true);
+            }
+            else if (tapsSequence[currentIndex] == 3)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance03", true);
+            }
+        }
+        else if (currentKeyInSequence == gameMaster.mainMenuC.danceRight)
+        {
+            if (tapsSequence[currentIndex] == 1)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance03", true);
+            }
+            else if (tapsSequence[currentIndex] == 2)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance07", true);
+            }
+            else if (tapsSequence[currentIndex] == 3)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance05", true);
+            }
+        }
+        else if (currentKeyInSequence == gameMaster.mainMenuC.danceLeft)
+        {
+            if (tapsSequence[currentIndex] == 1)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance04", true);
+            }
+            else if (tapsSequence[currentIndex] == 2)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance08", true);
+            }
+            else if (tapsSequence[currentIndex] == 3)
+            {
+                gameMaster.story.hannahCutscenes.GetComponent<Animator>().SetBool("dance07", true);
+            }
+        }
+    }
+
+    public bool madeError;
+
+    public IEnumerator Dancing(bool firstDance)
+    {
+        indicesBouncing.Clear();
+        float timeElapsed = 0;
+        currentKeyInSequence = arrowKeySequence[0];
+        int currentIndex = 0;
+        if (firstDance)
+        {
+            if (!psb.isPlaying)
+            {
+                psb.isPlaying = true;
+                StartCoroutine(psb.ModulateSampleBars());
+            }
+            danceMusicAudio.time = 0;
+            danceMusicAudio.loop = true;
+            danceMusicAudio.Play();
+        }
+        int correctTaps = 0;
+        madeError = false; 
+        while (!madeError & currentIndex < arrowMoveIndicators.Count())
+        {
+            speedIndicator.text = "X" + speedRatio.ToString() + " SPEED";
+            if (currentIndex <= arrowMoveIndicators.Count() - 1)
+            {
+                // Shake Effect
+                if (!shake & subjectObject != null)
+                {
+                    shake = true;
+                    StartCoroutine(ShakeObject(subjectObject));
+                }
+                if (shake)
+                {
+                    maxAngle = Mathf.Max(maxAngle, 7.5f * (float) currentIndex / (arrowMoveIndicators.Count() - 1));
+                }
+                //
+                if(!indicesBouncing.Contains(currentIndex))
+                {
+                    indicesBouncing.Add(currentIndex);
+                    Bounce(arrowMoveIndicators[currentIndex].GetComponent<Image>());
+                    Bounce(numberIndicators[currentIndex].GetComponent<Image>());
+                }
+                arrowMoveIndicators[currentIndex].GetComponent<Image>().color = new Color(205/255f, 85/255f, 72/255f, Mathf.Max(1 - (timeElapsed * speedRatio) * 0.5f, 0.50f));
+                numberIndicators[currentIndex].GetComponent<Image>().color = new Color(205 / 255f, 85 / 255f, 72 / 255f, Mathf.Max(1 - (timeElapsed * speedRatio) * 0.5f, 0.50f));
+                if(currentIndex > 0)
+                {
+                    arrowMoveIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                    numberIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                }
+            }
+            if (timeElapsed >= (1 / speedRatio))
+            {
+                if (correctTaps != tapsSequence[currentIndex])
+                {
+                    if(correctTaps < tapsSequence[currentIndex])
+                    {
+                        TooFewDisplay();
+                    }
+                    else if(correctTaps > tapsSequence[currentIndex])
+                    {
+                        TooManyDisplay();
+                    }
+                    madeError = true;
+                }
+                else
+                {
+                    if (!((currentIndex + 1) % 2 == 0))
+                    {
+                        SetDanceBools(currentIndex);
+                    }
+                    if ((currentIndex + 1) % 3 == 0)
+                    {
+                        danceExertionAS.clip = exertionClips[rnd.Next(0, exertionClips.Count)];
+                        danceExertionAS.time = 0;
+                        danceExertionAS.Play();
+                    }
+                }
+                currentIndex += 1;
+                if(currentIndex == 8 & !warning)
+                {
+                    warning = true;
+                    StartCoroutine(ContinuationWarning());
+                }
+                timeElapsed = 0;
+                correctTaps = 0;
+                LiveConfigureArrows(currentIndex);
+                if (currentIndex > arrowKeySequence.Count - 1)
+                {
+                    break;
+                }
+                else
+                {
+                    currentKeyInSequence = arrowKeySequence[currentIndex];
+                    if (currentIndex < arrowKeySequence.Count - 1 & complexSpellNames.Contains(danceTitle.text))
+                    {
+                        if(rnd.Next(0, 15) >= 10)
+                        {
+                            UpdateSpellLive(currentIndex + 1);
+                        }
+                    }
+                }
+            }
+            if (!madeError)
+            {
+                if (gameMaster.mainMenuC.slowDance.WasPressedThisFrame() & gameMaster.slowEnabled & currentSlowPoints > 0)
+                {
+                    if (!slowed)
+                    {
+                        slowDownAS.time = 0;
+                        slowDownAS.Play();
+                        slowed = true;
+                        SlowOrSpeedDisplay();
+                    }
+                    else
+                    {
+                        speedUpAS.time = 0;
+                        speedUpAS.Play();
+                        speedRatio = defaultSpeedRatio;
+                        slowed = false;
+                        SlowOrSpeedDisplay();
+                    }
+                }
+                if (gameMaster.mainMenuC.danceUp.WasPressedThisFrame())
+                {
+                    if (currentKeyInSequence == gameMaster.mainMenuC.danceUp)
+                    {
+                        correctTaps += 1;
+                        //
+                        if (correctTaps <= tapsSequence[currentIndex])
+                        {
+                            GeneratePoints(timeElapsed, correctTaps);
+                            GenerateGooberEncouragement();
+                        }
+                    }
+                    else
+                    {
+                        bool holdHorses = false;
+                        if (currentIndex < arrowKeySequence.Count - 1)
+                        {
+                            if (gameMaster.mainMenuC.danceUp == arrowKeySequence[currentIndex + 1] & correctTaps == tapsSequence[currentIndex])
+                            {
+                                HoldYourHorsesDisplay();
+                                holdHorses = true;
+                            }
+                        }
+                        if (!holdHorses)
+                        {
+                            WatchYourStepDisplay();
+                        }
+                        madeError = true;
+                    }
+                }
+                if (gameMaster.mainMenuC.danceDown.WasPressedThisFrame())
+                {
+                    if (currentKeyInSequence == gameMaster.mainMenuC.danceDown)
+                    {
+                        correctTaps += 1;
+                        //
+                        if (correctTaps <= tapsSequence[currentIndex])
+                        {
+                            GeneratePoints(timeElapsed, correctTaps);
+                            GenerateGooberEncouragement();
+                        }
+                    }
+                    else
+                    {
+                        bool holdHorses = false;
+                        if (currentIndex < arrowKeySequence.Count - 1)
+                        {
+                            if (gameMaster.mainMenuC.danceDown == arrowKeySequence[currentIndex + 1] & correctTaps == tapsSequence[currentIndex])
+                            {
+                                HoldYourHorsesDisplay();
+                                holdHorses = true;
+                            }
+                        }
+                        if (!holdHorses)
+                        {
+                            WatchYourStepDisplay();
+                        }
+                        madeError = true;
+                    }
+                }
+                if (gameMaster.mainMenuC.danceRight.WasPressedThisFrame())
+                {
+                    if (currentKeyInSequence == gameMaster.mainMenuC.danceRight)
+                    {
+                        correctTaps += 1;
+                        //
+                        if (correctTaps <= tapsSequence[currentIndex])
+                        {
+                            GeneratePoints(timeElapsed, correctTaps);
+                            GenerateGooberEncouragement();
+                        }
+                    }
+                    else
+                    {
+                        bool holdHorses = false;
+                        if (currentIndex < arrowKeySequence.Count - 1)
+                        {
+                            if (gameMaster.mainMenuC.danceRight == arrowKeySequence[currentIndex + 1] & correctTaps == tapsSequence[currentIndex])
+                            {
+                                HoldYourHorsesDisplay();
+                                holdHorses = true;
+                            }
+                        }
+                        if (!holdHorses)
+                        {
+                            WatchYourStepDisplay();
+                        }
+                        madeError = true;
+                    }
+                }
+                if (gameMaster.mainMenuC.danceLeft.WasPressedThisFrame())
+                {
+                    if (currentKeyInSequence == gameMaster.mainMenuC.danceLeft)
+                    {
+                        correctTaps += 1;
+                        //
+                        if(correctTaps <= tapsSequence[currentIndex])
+                        {
+                            GeneratePoints(timeElapsed, correctTaps);
+                            GenerateGooberEncouragement();
+                        }
+                    }
+                    else
+                    {
+                        bool holdHorses = false;
+                        if (currentIndex < arrowKeySequence.Count - 1)
+                        {
+                            if (gameMaster.mainMenuC.danceLeft == arrowKeySequence[currentIndex + 1] & correctTaps == tapsSequence[currentIndex])
+                            {
+                                HoldYourHorsesDisplay();
+                                holdHorses = true;
+                            }
+                        }
+                        if (!holdHorses)
+                        {
+                            WatchYourStepDisplay();
+                        }
+                        madeError = true;
+                    }
+                }
+            } 
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        // End Dance Unsuccessful
+        if (madeError)
+        {
+            if (!percentageToBeat.gameObject.activeSelf)
+            {
+                ResetPoints();
+            }
+            if (currentIndex == arrowMoveIndicators.Count())
+            {
+                arrowMoveIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                numberIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+            }
+            else
+            {
+                arrowMoveIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                numberIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+            }
+            if (!percentageToBeat.gameObject.activeSelf)
+            {
+                shake = false;
+            }
+            StartCoroutine(DanceFailure());
+        }
+        // End Dance Successful
+        else
+        {
+            if (currentIndex == arrowMoveIndicators.Count())
+            {
+                arrowMoveIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                numberIndicators[currentIndex - 1].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+            }
+            else if (currentIndex == arrowMoveIndicators.Count() - 1)
+            {
+                arrowMoveIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+                numberIndicators[currentIndex].GetComponent<Image>().color = new Color(1, 1, 1, 0.5f);
+            }
+            StartCoroutine(DanceSuccess());
+        }
+        yield return null;
+    }
+
+    // Additional Effects
+
+    public bool shake;
+    public GameObject subjectObject;
+    public float maxAngle = 0;
+
+    public bool isLevitating;
+
+    public Vector3 originalEuler;
+
+    public IEnumerator ShakeObject(GameObject subject)
+    {
+        maxAngle = 0;
+        int direction = 1;
+        float timer = 0;
+        const float toggleTime = 0.5f; // change direction every 0.2s
+        originalEuler = subject.transform.eulerAngles;
+        while (shake)
+        {
+            timer += Time.deltaTime;
+            float zAngle = direction * timer * (maxAngle / toggleTime);
+            subject.transform.rotation = Quaternion.Euler(0, 0, zAngle);
+            if (timer >= toggleTime)
+            {
+                if (maxAngle > 7.5f/2 & !isLevitating)
+                {
+                    shakeAS.Play();
+                }
+                direction = direction * -1;
+                timer = 0;
+            }
+            yield return null;
+        }
+        shakeAS.Stop();
+        maxAngle = 0;
+        isLevitating = false;
+    }
+
+    // Generate Spell
+
+    public void GenerateSpell(string spellName)
+    {
+        List<InputAction> danceMoves = new List<InputAction>() { gameMaster.mainMenuC.danceDown, gameMaster.mainMenuC.danceUp, gameMaster.mainMenuC.danceRight, gameMaster.mainMenuC.danceLeft };
+        List<InputAction> spell = new List<InputAction>();
+        List<int> spellTaps = new List<int>();
+        for(int i = 0; i <= 10; i++)
+        {
+            spell.Add(danceMoves[rnd.Next(0, danceMoves.Count())]);
+            if(i == 0)
+            {
+                spellTaps.Add(rnd.Next(1, 3));
+            }
+            else
+            {
+                if (spellTaps[i - 1] == 3)
+                {
+                    spellTaps.Add(rnd.Next(1, 3));
+                }
+                else
+                {
+                    spellTaps.Add(rnd.Next(1, 4));
+                }
+            }
+        }
+        if (spellName == "Fix Spell")
+        {
+            fixSpell = spell;
+            fixSpellTaps = spellTaps;
+        }
+        else if (spellName == "Ignite Spell")
+        {
+            igniteSpell = spell;
+            igniteSpellTaps = spellTaps;
+        }
+        else if (spellName == "Extinguish Spell")
+        {
+            extinguishSpell = spell;
+            extinguishSpellTaps = spellTaps;
+        }
+    }
+
+    public void UpdateSpellLive(int nextIndex)
+    {
+        List<InputAction> danceMoves = new List<InputAction>() { gameMaster.mainMenuC.danceDown, gameMaster.mainMenuC.danceUp, gameMaster.mainMenuC.danceRight, gameMaster.mainMenuC.danceLeft };
+        arrowKeySequence[nextIndex] = danceMoves[rnd.Next(0, danceMoves.Count())];
+        // Configure
+        if (arrowKeySequence[nextIndex] == gameMaster.mainMenuC.danceUp)
+        {
+            arrowMoveIndicators[nextIndex].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 0);
+        }
+        else if (arrowKeySequence[nextIndex] == gameMaster.mainMenuC.danceDown)
+        {
+            arrowMoveIndicators[nextIndex].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 180);
+        }
+        else if (arrowKeySequence[nextIndex] == gameMaster.mainMenuC.danceRight)
+        {
+            arrowMoveIndicators[nextIndex].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, -90);
+        }
+        else if (arrowKeySequence[nextIndex] == gameMaster.mainMenuC.danceLeft)
+        {
+            arrowMoveIndicators[nextIndex].GetComponent<RectTransform>().localEulerAngles = new Vector3(0, 0, 90);
+        }
+        if (tapsSequence[nextIndex] == 1)
+        {
+            numberIndicators[nextIndex].GetComponent<Image>().sprite = oneimg;
+        }
+        else if (tapsSequence[nextIndex] == 2)
+        {
+            numberIndicators[nextIndex].GetComponent<Image>().sprite = twoimg;
+        }
+        else if (tapsSequence[nextIndex] == 3)
+        {
+            numberIndicators[nextIndex].GetComponent<Image>().sprite = threeimg;
+        }
+        // Bounce
+        Bounce(arrowMoveIndicators[nextIndex].GetComponent<Image>());
+        Bounce(numberIndicators[nextIndex].GetComponent<Image>());
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        defaultSize = numberIndicators[0].GetComponent<RectTransform>().sizeDelta;
+        originalLocalPositionNumberIndicatorsY = numberIndicators[0].GetComponent<RectTransform>().localPosition.y;
+        originalLocalPositionArrowMoveIndicatorsY = arrowMoveIndicators[0].GetComponent<RectTransform>().localPosition.y;
+        // Unlock Door Spell
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceUp);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceLeft);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceDown);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceLeft);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceDown);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceRight);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceDown);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceLeft);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceUp);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceDown);
+        unlockDoorSpell.Add(gameMaster.mainMenuC.danceRight);
+        unlockDoorSpellTaps = new List<int>() {1, 2, 1, 1, 2, 1, 2, 2, 1, 1, 2 };
+        // Levitate Spell   
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceDown);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceLeft);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceUp);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceLeft);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceDown);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceDown);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceRight);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceUp);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceDown);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceLeft);
+        levitateObjectSpell.Add(gameMaster.mainMenuC.danceRight);
+        levitateObjectSpellTaps = new List<int>() { 2, 1, 2, 1, 2, 1, 1, 2, 2, 1, 2 };
+        // Throw Spell   
+        throwSpell.Add(gameMaster.mainMenuC.danceRight);
+        throwSpell.Add(gameMaster.mainMenuC.danceLeft);
+        throwSpell.Add(gameMaster.mainMenuC.danceDown);
+        throwSpell.Add(gameMaster.mainMenuC.danceUp);
+        throwSpell.Add(gameMaster.mainMenuC.danceRight);
+        throwSpell.Add(gameMaster.mainMenuC.danceDown);
+        throwSpell.Add(gameMaster.mainMenuC.danceDown);
+        throwSpell.Add(gameMaster.mainMenuC.danceLeft);
+        throwSpell.Add(gameMaster.mainMenuC.danceUp);
+        throwSpell.Add(gameMaster.mainMenuC.danceLeft);
+        throwSpell.Add(gameMaster.mainMenuC.danceDown);
+        throwSpellTaps = new List<int>() { 3, 2, 3, 2, 3, 2, 2, 3, 3, 2, 3 };
+        // Enchant Spell   
+        enchantSpell.Add(gameMaster.mainMenuC.danceLeft);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceUp);
+        enchantSpell.Add(gameMaster.mainMenuC.danceLeft);
+        enchantSpell.Add(gameMaster.mainMenuC.danceRight);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceLeft);
+        enchantSpell.Add(gameMaster.mainMenuC.danceUp);
+        enchantSpell.Add(gameMaster.mainMenuC.danceRight);
+        enchantSpellTaps = new List<int>() { 3, 1, 2, 3, 1, 2, 1, 2, 3, 2, 1 };
+        // Frighten Spell
+        frightenSpell.Add(gameMaster.mainMenuC.danceLeft);
+        frightenSpell.Add(gameMaster.mainMenuC.danceLeft);
+        frightenSpell.Add(gameMaster.mainMenuC.danceDown);
+        frightenSpell.Add(gameMaster.mainMenuC.danceUp);
+        frightenSpell.Add(gameMaster.mainMenuC.danceDown);
+        frightenSpell.Add(gameMaster.mainMenuC.danceLeft);
+        frightenSpell.Add(gameMaster.mainMenuC.danceRight);
+        frightenSpell.Add(gameMaster.mainMenuC.danceDown);
+        frightenSpell.Add(gameMaster.mainMenuC.danceLeft);
+        frightenSpell.Add(gameMaster.mainMenuC.danceRight);
+        frightenSpell.Add(gameMaster.mainMenuC.danceRight);
+        frightenSpellTaps = new List<int>() { 1, 2, 2, 1, 2, 1, 2, 2, 1, 2, 1 };
+        // Sleep Spell
+        sleepSpell.Add(gameMaster.mainMenuC.danceRight);
+        sleepSpell.Add(gameMaster.mainMenuC.danceRight);
+        sleepSpell.Add(gameMaster.mainMenuC.danceLeft);
+        sleepSpell.Add(gameMaster.mainMenuC.danceDown);
+        sleepSpell.Add(gameMaster.mainMenuC.danceRight);
+        sleepSpell.Add(gameMaster.mainMenuC.danceLeft);
+        sleepSpell.Add(gameMaster.mainMenuC.danceDown);
+        sleepSpell.Add(gameMaster.mainMenuC.danceUp);
+        sleepSpell.Add(gameMaster.mainMenuC.danceDown);
+        sleepSpell.Add(gameMaster.mainMenuC.danceLeft);
+        sleepSpell.Add(gameMaster.mainMenuC.danceLeft);
+        sleepSpellTaps = new List<int>() { 1, 2, 1, 2, 2, 1, 2, 1, 2, 2, 1 };
+        // Extinguish Spell
+        enchantSpell.Add(gameMaster.mainMenuC.danceRight);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceLeft);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceUp);
+        enchantSpell.Add(gameMaster.mainMenuC.danceDown);
+        enchantSpell.Add(gameMaster.mainMenuC.danceLeft);
+        enchantSpell.Add(gameMaster.mainMenuC.danceRight);
+        enchantSpell.Add(gameMaster.mainMenuC.danceUp);
+        enchantSpell.Add(gameMaster.mainMenuC.danceRight);
+        enchantSpellTaps = new List<int>() { 2, 2, 1, 3, 1, 3, 2, 2, 1, 3, 2 };
+        //
+    }
+
+    public GameObject radio;
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (danceMenu.activeSelf)
+        {
+            if (gameMaster.mainMenuC.nextTheme.WasPressedThisFrame())
+            {
+                NextTheme();
+            }
+        }
+        if (danceMusicAudio.isPlaying)
+        {
+            if (!radio.transform.GetChild(0).GetComponent<ParticleSystem>().isPlaying)
+            {
+                radio.transform.GetChild(0).gameObject.SetActive(true);
+                radio.transform.GetChild(0).GetComponent<ParticleSystem>().Play();
+            }
+        }
+        else
+        {
+            radio.transform.GetChild(0).gameObject.SetActive(false);
+            radio.transform.GetChild(0).GetComponent<ParticleSystem>().Stop();
+        }
+    }
+}
