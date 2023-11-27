@@ -1,0 +1,321 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using Michsky.UI.ModernUIPack;
+using System.Linq;
+using UnityEngine.InputSystem;
+
+public class MessageSystem : MonoBehaviour
+{
+
+    public GameMaster gameMaster;
+
+    public bool messagesLocked; // prevents another message system from activating and overwriting the current one
+    public bool messagesPaused; // manually freezes the message system at a point until its manually unpaused
+
+    public int responseIndex = 0;
+    public bool isResponseDialogue;
+    public bool responded;
+    public TextMeshProUGUI response01;
+    public TextMeshProUGUI response02;
+
+    public AudioSource conversationSoundAS;
+
+    public AudioClip moveChoiceSound;
+    public AudioClip selectChoiceSound;
+
+    public ModalWindowManager messageWindow;
+
+    public MessageEvent currentMessageEvent;
+
+    public int currentMessageIndex;
+
+    public int messageDisplaySpeed = 15; 
+
+    public bool messagesFinished;
+
+    // Animations
+
+    public Animator currentAnimator;
+
+    public bool animating;
+
+    public void StartTalk()
+    {
+        currentAnimator.GetComponent<Animator>().SetBool("talk", true);
+        StartCoroutine(DisableTalkAnimation(currentAnimator));
+    }
+
+    public IEnumerator DisableTalkAnimation(Animator anim)
+    {
+        float timeElapsed = 0;
+        while (timeElapsed < 5 & animating)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        if(anim != null)
+        {
+            anim.SetBool("talk", false);
+        }
+        animating = false;
+    }
+
+    public IEnumerator CloseMessageSystem()
+    {
+        if(currentAnimator != null)
+        {
+            currentAnimator.SetBool("talk", false);
+        }
+        gameMaster.story.characterCutscenes.GetComponent<Animator>().SetBool("talk", false);
+        currentAnimator = null;
+        animating = false;
+        float timeElapsed = 0;
+        while (timeElapsed < 0.10f)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        if (!response01.gameObject.activeSelf)
+        {
+            messageWindow.descriptionText = "";
+            messageWindow.UpdateUI();
+            gameObject.SetActive(false);
+        }
+    }
+
+    //
+
+    public void StartMessageSystem(MessageEvent me)
+    {
+        if (!me.responseDialogue)
+        {
+            isResponseDialogue = false;
+            responded = false;
+            responseIndex = 0;
+            response01.gameObject.SetActive(false);
+            response02.gameObject.SetActive(false);
+        }
+        messagesFinished = false;
+        currentMessageEvent = me;
+        currentMessageIndex = 0;
+        messageWindow.descriptionText = "";
+        messageWindow.titleText = currentMessageEvent.speakers[currentMessageIndex];
+        messageWindow.UpdateUI();
+        cursor.SetActive(true);
+        currentLoadMessage = LoadMessage();
+        gameObject.SetActive(true);
+        StartCoroutine(currentLoadMessage);
+    }
+
+    public void EndMessageSystem()
+    {
+        messagesFinished = true;
+        //
+        if (gameObject.activeSelf)
+        {
+            StartCoroutine(CloseMessageSystem());
+        }
+        //gameObject.SetActive(false);
+    }
+
+    public IEnumerator currentLoadMessage;
+
+    public IEnumerator LoadMessage()
+    {
+        if (messagesPaused)
+        {
+            yield return null;
+        }
+        if (currentMessageEvent.conversationNoise.Count > 0)
+        {
+            if(currentMessageEvent.conversationNoise[currentMessageIndex] != null)
+            {
+                conversationSoundAS.clip = currentMessageEvent.conversationNoise[currentMessageIndex];
+                conversationSoundAS.time = 0;
+                conversationSoundAS.Play();
+            }
+        }
+        gameObject.GetComponent<AudioSource>().Play();
+        while (messageWindow.descriptionText.Length < currentMessageEvent.messages[currentMessageIndex].Length)
+        {
+            if (gameMaster.mainMenuC.paused)
+            {
+                gameObject.GetComponent<AudioSource>().Stop();
+                yield return null;
+            }
+            else
+            {
+                if (!gameObject.GetComponent<AudioSource>().isPlaying)
+                {
+                    gameObject.GetComponent<AudioSource>().Play();
+                }
+                for (int i = 0; i <= (int)((float) messageDisplaySpeed * Mathf.Max(0.01f, Time.deltaTime)); i++)
+                {
+                    if (messageWindow.descriptionText.Length < currentMessageEvent.messages[currentMessageIndex].Length)
+                    {
+                        messageWindow.descriptionText += currentMessageEvent.messages[currentMessageIndex][messageWindow.descriptionText.Length];
+                        messageWindow.UpdateUI();
+                    }
+                }
+            }
+            yield return null;
+        }
+        gameObject.GetComponent<AudioSource>().Stop();
+    }
+
+    public void NextMessage()
+    {
+        if (messageWindow.descriptionText.Length == currentMessageEvent.messages[currentMessageIndex].Length)
+        {
+            if (currentMessageIndex == currentMessageEvent.messages.Count - 1)
+            {
+                if (currentLoadMessage != null)
+                {
+                    StopCoroutine(currentLoadMessage);
+                    gameObject.GetComponent<AudioSource>().Stop();
+                }
+                EndMessageSystem();
+            }
+            else
+            {
+                if (currentLoadMessage != null)
+                {
+                    StopCoroutine(currentLoadMessage);
+                    gameObject.GetComponent<AudioSource>().Stop();
+                }
+                messageWindow.descriptionText = "";
+                messageWindow.UpdateUI();
+                cursor.SetActive(true);
+                currentMessageIndex += 1;
+                if (currentMessageEvent.cameraPositions.Count > 0)
+                {
+                    gameMaster.sceneCamera.transform.position = currentMessageEvent.cameraPositions[currentMessageIndex];
+                    gameMaster.sceneCamera.transform.eulerAngles = currentMessageEvent.cameraAngles[currentMessageIndex];
+                }
+                messageWindow.titleText = currentMessageEvent.speakers[currentMessageIndex];
+                if (messageWindow.titleText == "character")
+                {
+                    if (gameMaster.story.characterCutscenes.activeSelf)
+                    {
+                        //gameMaster.story.characterCutscenes.GetComponent<Animator>().SetBool("talk", true);
+                    }
+                }
+                currentLoadMessage = LoadMessage();
+                StartCoroutine(currentLoadMessage);
+            }
+        }
+        else
+        {
+            /*
+            if (currentLoadMessage != null)
+            {
+                StopCoroutine(currentLoadMessage);
+                gameObject.GetComponent<AudioSource>().Stop();
+            }
+            messageWindow.descriptionText = currentMessageEvent.messages[currentMessageIndex];
+            messageWindow.UpdateUI();
+            if(currentMessageEvent.cameraPositions.Count > 0)
+            {
+                gameMaster.sceneCamera.transform.position = currentMessageEvent.cameraPositions[currentMessageIndex];
+                gameMaster.sceneCamera.transform.eulerAngles = currentMessageEvent.cameraAngles[currentMessageIndex];
+            }
+            */
+        }
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+
+    }
+
+    public GameObject cursor;
+    public float cursorTime = 0;
+    public float cursorBlinkTime = 1f;
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (gameObject.activeSelf & currentMessageEvent != null)
+        {
+            if(currentAnimator != null & !animating)
+            {
+                animating = true;
+                StartTalk();
+            }
+            if (messageWindow.descriptionText.Length == currentMessageEvent.messages[currentMessageIndex].Length)
+            {
+                if (!isResponseDialogue)
+                {
+                    cursorTime += Time.deltaTime;
+                    if (cursorTime >= cursorBlinkTime)
+                    {
+                        if (cursor.gameObject.activeSelf)
+                        {
+                            cursor.SetActive(false);
+                        }
+                        else
+                        {
+                            cursor.SetActive(true);
+                        }
+                        cursorTime = 0;
+                    }
+                }
+                else
+                {
+                    cursor.SetActive(false);
+                }
+            }
+            if (gameMaster.mainMenuC.nextMessage.WasPressedThisFrame() & !isResponseDialogue)
+            {
+                NextMessage();
+            }
+            else if (gameMaster.mainMenuC.interact.WasPerformedThisFrame())
+            {
+                if (isResponseDialogue & (messageWindow.descriptionText.Length == currentMessageEvent.messages[currentMessageIndex].Length))
+                {
+                    gameMaster.story.sceneSoundFX.clip = selectChoiceSound;
+                    gameMaster.story.sceneSoundFX.time = 0;
+                    gameMaster.story.sceneSoundFX.Play();
+                    responded = true;
+                    response01.GetComponent<TextMeshProEffect>().enabled = false;
+                    response02.GetComponent<TextMeshProEffect>().enabled = false;
+                    response01.gameObject.SetActive(false);
+                    response02.gameObject.SetActive(false);
+                    EndMessageSystem();
+                }
+            }
+            else if (gameMaster.mainMenuC.changeMessageChoice.WasPressedThisFrame() & responded == false & isResponseDialogue)
+            {
+                if (isResponseDialogue & (messageWindow.descriptionText.Length == currentMessageEvent.messages[currentMessageIndex].Length))
+                {
+                    gameMaster.story.sceneSoundFX.clip = moveChoiceSound;
+                    gameMaster.story.sceneSoundFX.time = 0;
+                    gameMaster.story.sceneSoundFX.Play();
+                    if (responseIndex == 1)
+                    {
+                        responseIndex = 0;
+                        response01.GetComponent<TextMeshProEffect>().enabled = true;
+                        response02.GetComponent<TextMeshProEffect>().enabled = false;
+                    }
+                    else if (responseIndex == 0)
+                    {
+                        responseIndex = 1;
+                        response01.GetComponent<TextMeshProEffect>().enabled = false;
+                        response02.GetComponent<TextMeshProEffect>().enabled = true;
+                    }
+                }             
+            }
+            if (gameMaster.mainMenuC.nextMessage.IsPressed())
+            {
+                messageDisplaySpeed = 50;
+            }
+            else
+            {
+                messageDisplaySpeed = 15;
+            }
+        }
+    }
+}
