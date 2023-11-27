@@ -1,0 +1,32 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System.Collections.Specialized;
+
+public class MessageEvent : MonoBehaviour
+{
+    // Start is called before the first frame update
+
+    public List<string> speakers = new List<string>();
+    public List<string> messages = new List<string>();
+
+    public List<AudioClip> conversationNoise = new List<AudioClip>();
+
+    public List<Vector3> cameraPositions = new List<Vector3>();
+    public List<Vector3> cameraAngles = new List<Vector3>();
+
+    public bool responseDialogue;
+
+    public List<string> responses = new List<string>(); // exactly 2
+
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
