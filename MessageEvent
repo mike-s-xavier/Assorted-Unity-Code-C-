@@ -5,7 +5,6 @@ using System.Collections.Specialized;
 
 public class MessageEvent : MonoBehaviour
 {
-    // Start is called before the first frame update
 
     public List<string> speakers = new List<string>();
     public List<string> messages = new List<string>();
@@ -17,7 +16,9 @@ public class MessageEvent : MonoBehaviour
 
     public bool responseDialogue;
 
-    public List<string> responses = new List<string>(); // exactly 2
+    public List<string> responses = new List<string>(); 
+
+    // Start is called before the first frame update
 
     void Start()
     {
