@@ -1,0 +1,81 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Caterpillar : MonoBehaviour
+{
+
+    System.Random rnd = new System.Random();
+
+    public GameObject caterpillar;
+
+    public GameObject head;
+
+    public List<GameObject> segments;
+
+    List<Vector3> startPositions = new List<Vector3>();
+
+    Vector3[] lastPositions = new Vector3[0];
+
+    public IEnumerator MovePieces()
+    {
+        if(rnd.Next(0,10) % 2 == 0)
+        {
+            Quaternion newRotation = Quaternion.Euler(90,0,0);
+            head.transform.localRotation = newRotation;
+        }
+        else
+        {
+            Quaternion newRotation = Quaternion.Euler(0, 0, 0);
+            head.transform.localRotation = newRotation;
+        }
+        startPositions.Clear();
+        for(int i = 0; i <= segments.Count - 1; i++)
+        {
+            startPositions.Add(segments[i].transform.position);
+        }
+        for (int i = 0; i < segments.Count; i++)
+        {
+            float timeElapsed = 0;
+            lastPositions[i] = segments[i].transform.position;
+            float segmentMoveTime = 0.5f;
+            while (timeElapsed < segmentMoveTime)
+            {
+                timeElapsed += Time.deltaTime;
+                Vector3 interpolatedPosition = new Vector3(0, 0, 0);
+                // Shift Current Piece By Time
+                float interpolationRatio = Mathf.Min(1, (1 / segmentMoveTime) * timeElapsed);
+                if (i == 0)
+                {
+                    interpolatedPosition = Vector3.Lerp(startPositions[0], startPositions[0] + 4f * segments[0].transform.forward, interpolationRatio);
+                    segments[0].transform.position = interpolatedPosition;
+                }
+                else
+                {
+                    interpolatedPosition = Vector3.Lerp(startPositions[i], lastPositions[i - 1], interpolationRatio);
+                    segments[i].transform.position = interpolatedPosition;
+                }
+                yield return null;
+            }
+        }
+        // Adjustments for Pieces
+        StartCoroutine(MovePieces());
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        lastPositions = new Vector3[segments.Count];
+        for(int i = 0; i< segments.Count; i++)
+        {
+            lastPositions[i] = segments[i].transform.position;
+        }
+        StartCoroutine(MovePieces());
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
