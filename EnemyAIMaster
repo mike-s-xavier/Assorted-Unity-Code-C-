@@ -1,0 +1,1465 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using System.Linq;
+using Pathfinding;
+using FIMSpace;
+using Invector;
+using RootMotion.FinalIK;
+using RootMotion.Demos;
+using MagicaCloth;
+using RayFire;
+
+public class EnemyAIMaster : MonoBehaviour
+{
+
+    public Player player;
+
+    public float animatorSpeed;
+
+    public bool activeDemon;
+
+    public bool dieOnLoad;
+
+    public GameObject navigationObject;
+
+    public List<GameObject> weapons = new List<GameObject>();
+
+    public AudioSource finalNoiseAudio; // like body hitting the ground
+
+    public bool hasStagger;
+
+    IEnumerator livingRoutine;
+    float updateLoopTime;
+    float lastUpdateTime;
+
+    public string enemyType; 
+
+    public float health = 900; // used to determine when to die (less than or equal to 0)
+    public bool isDead; // used to determine state of death
+
+    public int afterDeathHits;
+
+    public InteractionSystem interactionSystem;
+
+    public SoundMetricMaster soundMetricMaster;
+
+    public bool applyRootMotion;
+
+    public SkinnedMeshRenderer SMR;
+
+    public Head head;
+    public Torso torso;
+
+    public Transform rightHand;
+    public Transform leftHand;
+
+    public Transform closerHand; // for interaction with objects and doors
+
+    Vector3 startPosition; // reset to wherever it ends up after hostile encounter
+
+    public float maximumWander; // the maximum distance it can wander from the startposition in default state
+
+    public Animator _animator;
+
+    // Sound Effect Variables
+    public GameObject ObjectWoodHit;
+    public GameObject ObjectMetalHit;
+    public GameObject ObjectCeramicHit;
+    public GameObject ObjectGlassHit;
+
+    public GameObject soundEmpty;
+    public AudioClip woodDestruction;
+    public AudioClip glassDestruction;
+    public AudioClip ceramicDestruction;
+
+    // State Variables
+    public bool isHostile;
+
+    float timeWithNoQualifiedTarget; // the accumulated time with no nearby, visible, or audible target until the AI exits the hostile state after entering it
+    public float disengageTime; // the time to accumulate in timeWithNoNearbyTarget until this enemy disengages its current target
+
+    public float defaultSpeed;
+    public float hostileSpeed;
+
+    Vector3 originalPosition;
+
+    // Obstacle Detective/Avoidance Variables
+    public int maxAvoidanceDistance = 1;
+    public bool turningAround;
+
+    public float turnPause = 1;
+    public float turnTimeElapsed;
+
+    // Attacking Variables
+
+    public bool isAttacking;
+
+    public Room currentRoom;
+
+    // Animation Variables
+
+    public List<string> defaultMovementAnimationBools;
+    public List<string> hostileMovementAnimationBools;
+    public List<string> attackAnimationBools;
+
+    public string dodgeRightAnimationBool;
+    public string dodgeLeftAnimationBool;
+    public string walkBackwardAnimationBool;
+
+    int defaultMovementAnimationBool;
+    int hostileMovementAnimationBool; // index in the list of hostile movement animation bools to use
+    int attackAnimationBool; // index in the list of attack animation bools to use
+
+    public List<AudioSource> attackSounds = new List<AudioSource>();
+
+    public bool hasMoveBackward;
+
+    // Blood Pooling Variables
+
+    public bool wasHitOnHead;
+    public bool wasHitOnTorso;
+
+    public bool headBloodPooled;
+    public bool torsoBloodPooled;
+
+    // Hearing Variables
+
+    public bool beingHit;
+
+    public float attackDistance;
+
+    // Vision Variables
+    public float viewRadius; // The distance from the monster it can see
+    [Range(0, 360)] // The restriction for the viewAngle
+    public float viewAngle; // the default field of vision 
+
+    public float hostileViewRadius; // The distance from the monster it can see
+    [Range(0, 360)]
+    public float hostileViewAngle; // the field of vision when hostile
+
+    public LayerMask targetMask;
+    public LayerMask obstacleMask;
+
+    public List<Transform> visibleTargets = new List<Transform>();
+
+    public Transform currentTarget;
+
+    // Vocalization Variables
+
+    public GameObject fallOverVocalizations;
+    public GameObject casualVocalizations;
+    public GameObject hitByPlayerVocalizations;
+    public GameObject attackVocalizations;
+    public GameObject deathVocalizations;
+
+    float casualVocalizationTime = 10;
+
+    // Hearing Variables
+
+    float currentNoiseImpulseTracking;
+    public int hearingDistance = 2;
+    public float hearingSensitivity = 1;
+    bool isHearing;
+    IEnumerator approachRoutine;
+
+    // Sliding Variables
+
+    public GameObject rearSlideObject;
+    public GameObject frontSlideObject;
+
+    public bool fallingAlready;
+    public bool fallenForward;
+    public bool fallenBackward;
+
+    // Vocalization
+
+    public void Vocalize(List<FMODUnity.StudioEventEmitter> vocalizations, bool effectFear, float startTime)
+    {
+        if(enemyType == "Mannequin")
+        {
+            return;
+        }
+        casualVocalizationTime = 10;
+        // Nearby when Vocalizing Instills Fear
+        if (player.nearbyEnemies.Contains(gameObject) & !player.visibleEnemies.Contains(gameObject) & effectFear)
+        {
+            float distance = Vector3.Distance(gameObject.transform.position, player.gameObject.transform.position);          
+            float maxDistance = casualVocalizations.GetComponents<AudioSource>().ToList()[0].maxDistance;
+            StartCoroutine(EffectFearDelay(distance, maxDistance));
+        }
+        int randomCheck = UnityEngine.Random.Range(0, vocalizations.Count - 1);    
+        FMODUnity.StudioEventEmitter randomAudio = vocalizations[randomCheck];
+        bool isPlaying = false;
+        List<FMODUnity.StudioEventEmitter> allVocalizations = ConstructAllVocalizations();
+        foreach (FMODUnity.StudioEventEmitter audio in allVocalizations)
+        {
+            if (audio.IsPlaying())
+            {
+                isPlaying = true;
+                break;
+            }
+        }
+        if (!isPlaying)
+        {
+            randomAudio.Play();
+        }
+    }
+
+    public IEnumerator EffectFearDelay(float distance, float maxDistance)
+    {
+        float timeElapsed = 0;
+        while(timeElapsed < 0.5f)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        player.fearMetricMaster.UpdateFearBar(0.1f * ((maxDistance - distance) / maxDistance));
+    }
+
+    public List<FMODUnity.StudioEventEmitter> ConstructAllVocalizations()
+    {
+        List<FMODUnity.StudioEventEmitter> allSources = new List<FMODUnity.StudioEventEmitter>();
+        if (fallOverVocalizations != null)
+        {
+            List<FMODUnity.StudioEventEmitter> FOV = fallOverVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> CV = casualVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> HBPV = hitByPlayerVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> AV = attackVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> DV = deathVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            allSources = FOV.Concat(CV).Concat(HBPV).Concat(AV).Concat(DV).ToList();
+        }
+        else
+        {
+            List<FMODUnity.StudioEventEmitter> CV = casualVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> HBPV = hitByPlayerVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> AV = attackVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            List<FMODUnity.StudioEventEmitter> DV = deathVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            allSources = CV.Concat(HBPV).Concat(AV).Concat(DV).ToList();
+        }
+        return allSources;
+    }
+
+    // Manage Enemy Lists (Visible, Audible, Near, etc.)
+
+    public void ManagePlayerEnemyLists()
+    {
+        float maxDistance = 10;
+        // Alive
+        if (health > 0)
+        {
+            if (!player.livingEnemies.Contains(gameObject))
+            {
+                player.livingEnemies.Add(gameObject);
+            }
+        }
+        else
+        {
+            if (player.livingEnemies.Contains(gameObject))
+            {
+                player.livingEnemies.Remove(gameObject);
+            }
+            visibleTargets.Clear();
+        }
+        if(health > 0)
+        {
+            // Visible
+            Vector3 dir = (transform.position - player.gameObject.transform.position).normalized;
+            float dot = Vector3.Dot(dir, player.gameObject.transform.forward); // 1 directly facing, -1 directly facing away
+            if (dot >= -0.5f & health > 0)
+            {
+                if (!player.visibleEnemies.Contains(gameObject))
+                {
+                    player.visibleEnemies.Add(gameObject);
+                }
+            }
+            else
+            {
+                if (player.visibleEnemies.Contains(gameObject))
+                {
+                    player.visibleEnemies.Remove(gameObject);
+                }
+            }
+            // Nearby
+            if (Vector3.Distance(gameObject.transform.position, player.gameObject.transform.position) <= maxDistance & Mathf.Abs(gameObject.transform.position.y - player.gameObject.transform.position.y) < 4 & health > 0)
+            {
+                if (!player.nearbyEnemies.Contains(gameObject))
+                {
+                    player.nearbyEnemies.Add(gameObject);
+                }
+                if (Vector3.Distance(gameObject.transform.position, player.gameObject.transform.position) <= maxDistance / 2f)
+                {
+                    if (!player.veryNearbyEnemies.Contains(gameObject))
+                    {
+                        player.veryNearbyEnemies.Add(gameObject);
+                    }
+                }
+            }
+            else
+            {
+                if (player.nearbyEnemies.Contains(gameObject))
+                {
+                    player.nearbyEnemies.Remove(gameObject);
+                }
+                if (player.veryNearbyEnemies.Contains(gameObject))
+                {
+                    player.veryNearbyEnemies.Remove(gameObject);
+                }
+            }
+        }      
+    }
+
+    // Obstacle Detection and Avoidance (integrate with vision method)
+    public void AvoidanceBehavior(GameObject wall)
+    {
+        bool targetBetween = false;
+        if (currentTarget != null)
+        {
+            Collider[] hitColliders = Physics.OverlapSphere(transform.position, maxAvoidanceDistance);
+            foreach (Collider collider in hitColliders)
+            {
+                if (collider.gameObject == currentTarget)
+                {
+                    targetBetween = true;
+                }
+                break;
+            }
+        }
+        if (!targetBetween & !turningAround)
+        {
+            // Use this method to face away from target (despite its name)          
+            turningAround = true;
+            StartCoroutine(TurnAround(wall));
+        }
+    }
+
+    public IEnumerator TurnAround(GameObject wall)
+    {
+        float totalRotated = 0;
+        Vector3 position = navigationObject.transform.position - navigationObject.transform.forward;
+        Vector3 dirToTarget = (navigationObject.transform.position - navigationObject.transform.forward).normalized;
+        bool safeDirection = false;
+        while (totalRotated < 360 & !safeDirection)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                RaycastHit hit;
+                if (Physics.Linecast(navigationObject.transform.position, navigationObject.transform.position + maxAvoidanceDistance * navigationObject.transform.forward, out hit))
+                {
+                    if (!(hit.transform.tag == "Wall" | hit.transform.gameObject.layer == 11))
+                    {
+                        safeDirection = true;
+                    }
+                }
+                Quaternion newRotation = gameObject.GetComponent<AIPath>().SimulateRotationTowards(dirToTarget, 45).normalized;
+                gameObject.GetComponent<AIPath>().FinalizeMovement(position, newRotation);
+                totalRotated += 45;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }         
+        }
+        if (currentTarget == null)
+        {
+            gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookTarget(null);
+        }
+        else if(currentTarget != null)
+        {
+            if(currentTarget.GetComponent<Player>() | currentTarget.GetComponent<Human>())
+            {
+                gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookTarget(currentTarget);
+            }
+        }
+        turningAround = false;
+    }
+
+    // Default State Behavior
+
+    public void DefaultStateBehavior()
+    {
+        if (currentTarget == null & currentWaypoint == null)
+        {
+            if (Vector3.Distance(gameObject.transform.position, originalPosition) > maximumWander)
+            {
+                Vector3 dirToTarget = (originalPosition - navigationObject.transform.forward).normalized;
+                Quaternion newRotation = gameObject.GetComponent<AIPath>().SimulateRotationTowards(dirToTarget, 45);
+                gameObject.GetComponent<AIPath>().FinalizeMovement(originalPosition, newRotation);
+            }
+        }
+    }
+
+    public GameObject currentWaypoint;
+    public List<GameObject> wayPoints;
+    public IEnumerator idleRoutine;
+
+    public void Patrol() 
+    {
+        if(wayPoints.Count == 0)
+        {
+            if(currentRoom != null)
+            {
+                wayPoints = currentRoom.roomWaypoints;
+            }
+            return;
+        }
+        if (currentTarget == null)
+        {
+            if(currentWaypoint == null & idleRoutine == null)
+            {
+                idleRoutine = Idle();
+                StartCoroutine(idleRoutine);
+            }
+            else if (currentWaypoint != null & currentTarget == null)
+            {
+                if (Vector3.Distance(gameObject.transform.position, currentWaypoint.transform.position) > 0.5f)
+                {
+                    gameObject.GetComponent<AIPath>().destination = currentWaypoint.transform.position; 
+                }
+                else
+                {
+                    currentWaypoint = null;
+                }
+            }
+        }
+    }
+
+    public IEnumerator Idle()
+    {
+        float timeElapsed = 0;
+        while(timeElapsed <= 5 & currentTarget == null)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        if(currentTarget == null)
+        {
+            currentWaypoint = wayPoints[UnityEngine.Random.Range(0, wayPoints.Count)];
+            gameObject.GetComponent<AIPath>().destination = currentWaypoint.transform.position;
+        }
+        idleRoutine = null;
+    }
+
+    // React to Being Attacked
+
+    public void ReactToAttack(Transform other) 
+    {
+        if(currentTarget == null)
+        {
+            if (other.gameObject.GetComponent<WeaponBat>())
+            {
+                currentTarget = other.gameObject.GetComponent<WeaponBat>().player.gameObject.transform;
+            }
+        }
+        else if(currentTarget != null)
+        {
+            if (!(currentTarget.GetComponent<Player>() | currentTarget.GetComponent<Human>()))
+            {
+                if (other.gameObject.GetComponent<WeaponBat>())
+                {
+                    currentTarget = other.gameObject.GetComponent<WeaponBat>().player.gameObject.transform;
+                }
+            }         
+        }
+    }
+
+    /// Special Pursuit Methods: Interact With Door
+
+    public void InteractWithDoor(RoomDoor roomDoor, SlidingDoor slidingDoor, GameObject doorObject = null)
+    {
+        // Regular Door
+        if (roomDoor != null)
+        {
+           
+        }
+        // Sliding Door
+        else if (slidingDoor != null)
+        {
+            if (slidingDoor.isOpen | slidingDoor.isDestroyed)
+            {
+                return;
+            }
+            // Door Unlocked or Destroyed
+            if (!slidingDoor.isLocked)
+            {
+                /// Open Door
+            }
+            // Door Locked
+            else
+            {
+                // Attack Door
+                currentTarget = doorObject.transform;
+            }
+        } 
+    }
+
+    public IEnumerator WaitToApproach(Vector3 position)
+    {
+        // Stop in Tracks and Turn to Look At Location Head First if Behind, Else just turn toward
+        Vector3 dir = (position - transform.position).normalized;
+        float dot = Vector3.Dot(dir, transform.forward); // 1 directly facing, -1 directly facing away
+        if (dot < 0.5f) 
+        {
+            gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookPosition(position);
+            isHearing = true;
+            float timeElapsed = 0;
+            gameObject.GetComponent<AIPath>().destination = gameObject.transform.position;
+            while (timeElapsed < 1.5f & currentTarget == null)
+            {
+                if (!player.gameMaster.gamePaused)
+                {
+                    timeElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                else
+                {
+                    yield return null;
+                }
+            }
+        }
+        if (currentTarget == null)
+        {
+            if (approachRoutine != null)
+            {
+                StopCoroutine(approachRoutine);
+            }
+            approachRoutine = FaceTarget(position);
+            StartCoroutine(approachRoutine);
+        }
+        else
+        {
+            isHearing = false;
+        }
+    }
+
+    public IEnumerator FaceTarget(Vector3 position)
+    {
+        float totalRotated = 0;
+        Vector3 dirToTarget = (position - transform.position).normalized;
+        while (totalRotated < 180 & currentTarget == null)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                Quaternion newRotation = gameObject.GetComponent<AIPath>().SimulateRotationTowards(dirToTarget, 15);
+                gameObject.GetComponent<AIPath>().FinalizeMovement(transform.position, newRotation);
+                totalRotated += 15;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        if (currentTarget == null)
+        {
+            gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookTarget(null);
+            gameObject.GetComponent<AIPath>().destination = position;
+        }
+        else if(currentTarget != null)
+        {
+            if (currentTarget.GetComponent<Player>() | currentTarget.GetComponent<Human>())
+            {
+                gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookTarget(currentTarget);
+            }
+        }
+        isHearing = false;
+    }
+
+    // Vision Methods
+
+    public float detectionDistance = 5;
+
+    public void Hear()
+    {
+        Vector3 originalPosition = new Vector3(3 * Mathf.Round(transform.position.x / 3f), 3 * Mathf.Round(transform.position.y / 3f), 3 * Mathf.Round(transform.position.z / 3f));
+        for (int i = -1 * hearingDistance; i <= 1 * hearingDistance; i++)
+        {
+            for (int j = -1 * hearingDistance; j <= 1 * hearingDistance; j++)
+            {
+                Dictionary<Vector3, float> noiseLocationDictionary = new Dictionary<Vector3, float>();
+                Vector3 position =
+                new Vector3(3 * Mathf.Round(transform.position.x / 3f) + 3 * i, 3 * Mathf.Round(transform.position.y / 3f), 3 * Mathf.Round(transform.position.z / 3f) + 3 * j);
+                if (soundMetricMaster.locationsNoises.ContainsKey(position))
+                {
+                    // Use i/j to modify threshold for hearing by distance from enemy & follow greater noise impulse if already moving to location
+                    if (soundMetricMaster.locationsNoises[position] > 0.05f * (Mathf.Max(Mathf.Abs(i), Mathf.Abs(j)) + 1) / hearingSensitivity
+                    & soundMetricMaster.locationsNoises[position] * hearingSensitivity / (Mathf.Max(Mathf.Abs(i), Mathf.Abs(j)) + 1) > currentNoiseImpulseTracking & !isHearing)
+                    {
+                        currentNoiseImpulseTracking = soundMetricMaster.locationsNoises[position] * hearingSensitivity / (Mathf.Max(Mathf.Abs(i), Mathf.Abs(j)) + 1);
+                        if (approachRoutine != null)
+                        {
+                            StopCoroutine(approachRoutine);
+                        }
+                        approachRoutine = WaitToApproach(position);
+                        StartCoroutine(approachRoutine);
+                    }
+                }
+            }
+        }
+    }
+
+    public void See()
+    {
+        Collider[] targetsInViewRadius = Physics.OverlapSphere(navigationObject.transform.position, viewRadius);
+        targetsInViewRadius.OrderBy((d) => (d.transform.position - navigationObject.transform.position).sqrMagnitude).ToArray();
+        for (int i = 0; i < targetsInViewRadius.Length; i++)
+        {
+            Transform target = targetsInViewRadius[i].transform;
+            Vector3 dirToTarget = (target.position - navigationObject.transform.position).normalized;
+            if (Vector3.Angle(transform.forward, dirToTarget) < viewAngle / 2)
+            {
+                float dstToTarget = Vector3.Distance(navigationObject.transform.position, target.position);
+                if (target.GetComponent<Player>() | target.GetComponent<Human>())
+                {
+                    SeeEnemy(target);
+                }
+                else if (target.GetComponent<EnemyAIMaster>())
+                {
+                    SeeMonster(target);
+                }
+                else if (target.gameObject.tag == "Wall" | target.gameObject.layer == 11)
+                {
+                    SeeWall(target);
+                }
+                if (target.gameObject.tag == "Door")
+                {
+                    SeeDoor(target);
+                }
+            }
+        }
+    }
+
+    public void SeeMonster(Transform target)
+    {
+        RaycastHit hit;
+        if (Physics.Linecast(navigationObject.transform.position, navigationObject.transform.position + maxAvoidanceDistance * navigationObject.transform.forward, out hit))
+        {
+            if (hit.collider.gameObject == target.gameObject)
+            {
+                if (Vector3.Distance(navigationObject.transform.position, hit.point) < maxAvoidanceDistance)
+                {
+                    AvoidanceBehavior(target.gameObject);
+                }
+            }
+        }
+    }
+
+    public void SeeWall(Transform target)
+    {
+        RaycastHit hit;
+        if (Physics.Linecast(navigationObject.transform.position, navigationObject.transform.position + maxAvoidanceDistance * navigationObject.transform.forward, out hit))
+        {
+            if (hit.collider.gameObject == target.gameObject)
+            {
+                if (Vector3.Distance(navigationObject.transform.position, hit.point) < maxAvoidanceDistance)
+                {
+                    AvoidanceBehavior(target.gameObject);
+                }
+            }
+        }
+    }
+
+    public void SeeDoor(Transform target)
+    {
+        if (currentTarget != null)
+        {
+            if (currentTarget.GetComponent<Player>())
+            {
+                if (currentRoom != currentTarget.GetComponent<Player>().currentRoom)
+                {
+                    if (currentTarget.GetComponent<Player>().currentRoom != null)
+                    {
+                        if (currentTarget.GetComponent<Player>().currentRoom.roomDoors.Count > 0)
+                        {
+                            if (target.gameObject.GetComponent<RoomDoor>())
+                            {
+                                if (currentTarget.GetComponent<Player>().currentRoom.roomDoors.Contains(target.gameObject.GetComponent<RoomDoor>()))
+                                {
+                                    InteractWithDoor(target.gameObject.GetComponent<RoomDoor>(), null, target.gameObject);
+                                }
+                            }
+                        }
+                        else if (currentTarget.GetComponent<Player>().currentRoom.slidingDoors.Count > 0)
+                        {
+                            if (target.gameObject.GetComponent<SlidingDoor>())
+                            {
+                                if (currentTarget.GetComponent<Player>().currentRoom.slidingDoors.Contains(target.gameObject.GetComponent<SlidingDoor>()))
+                                {
+                                    InteractWithDoor(null, target.gameObject.GetComponent<SlidingDoor>(), target.gameObject);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (currentTarget.GetComponent<Human>())
+            {
+                if (currentTarget.GetComponent<Human>().currentRoom.roomDoors.Count > 0)
+                {
+                    if (target.gameObject.GetComponent<RoomDoor>())
+                    {
+                        if (currentTarget.GetComponent<Human>().currentRoom.roomDoors.Contains(target.gameObject.GetComponent<RoomDoor>()))
+                        {
+                            InteractWithDoor(target.gameObject.GetComponent<RoomDoor>(), null, target.gameObject);
+                        }
+                    }
+                }
+                else if (currentTarget.GetComponent<Human>().currentRoom.slidingDoors.Count > 0)
+                {
+                    if (target.gameObject.GetComponent<SlidingDoor>())
+                    {
+                        if (currentTarget.GetComponent<Human>().currentRoom.slidingDoors.Contains(target.gameObject.GetComponent<SlidingDoor>()))
+                        {
+                            InteractWithDoor(null, target.gameObject.GetComponent<SlidingDoor>(), target.gameObject);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (Vector3.Distance(gameObject.transform.position, target.gameObject.transform.position) < maxAvoidanceDistance)
+            {
+                Vector3 dir = (target.gameObject.transform.position - transform.position).normalized;
+                float dot = Vector3.Dot(dir, transform.forward); // 1 directly facing, -1 directly facing away
+                if (dot > 0f)
+                {
+                    AvoidanceBehavior(target.gameObject);
+                }
+            }
+        }
+    }
+
+    public void SeeEnemy(Transform target)
+    {
+        if (target.GetComponent<Player>())
+        {
+            if (target.GetComponent<Player>().isAlive & !visibleTargets.Contains(target))
+            {
+                visibleTargets.Add(target);
+            }
+        }
+        else if (target.GetComponent<Human>())
+        {
+            if (target.GetComponent<Human>().isAlive & target.GetComponent<Human>().isFollowingPlayer & !visibleTargets.Contains(target))
+            {
+                visibleTargets.Add(target);
+            }
+        }
+    }
+
+    public Transform FindClosestTarget()
+    {
+        Transform bestTarget = null;
+        float closestDistanceSqr = Mathf.Infinity;
+        Vector3 currentPosition = transform.position;
+        foreach (Transform potentialTarget in visibleTargets.ToList())
+        {
+            Vector3 directionToTarget = potentialTarget.position - currentPosition;
+            float dSqrToTarget = directionToTarget.sqrMagnitude;
+            if (dSqrToTarget < closestDistanceSqr)
+            {
+                bool sameRoom = false;
+                if (potentialTarget.GetComponent<Player>())
+                {
+                    if(potentialTarget.GetComponent<Player>().currentRoom == currentRoom)
+                    {
+                        sameRoom = true;
+                    }
+                }
+                else if (potentialTarget.GetComponent<Human>())
+                {
+                    if (potentialTarget.GetComponent<Human>().currentRoom == currentRoom)
+                    {
+                        sameRoom = true;
+                    }
+                }
+                if (sameRoom)
+                {
+                    closestDistanceSqr = dSqrToTarget;
+                    bestTarget = potentialTarget;
+                }
+                else
+                {
+                    if (visibleTargets.Contains(potentialTarget))
+                    {
+                        visibleTargets.Remove(potentialTarget);
+                    }
+                }
+            }
+        }
+        return bestTarget;
+    }
+
+    public void DisengageTargetCheck()
+    {
+        if (Vector3.Distance(currentTarget.position, gameObject.transform.position) > hostileViewRadius)
+        {
+            timeWithNoQualifiedTarget += Time.deltaTime;
+        }
+        if (timeWithNoQualifiedTarget > disengageTime)
+        {
+            timeWithNoQualifiedTarget = 0;
+            currentTarget = null;
+            gameObject.GetComponent<AIDestinationSetter>().target = null;
+        }
+        if(currentTarget != null)
+        {
+            if (currentTarget.GetComponent<Player>())
+            {
+                if (!currentTarget.GetComponent<Player>().isAlive)
+                {
+                    timeWithNoQualifiedTarget = 0;
+                    currentTarget = null;
+                    gameObject.GetComponent<AIDestinationSetter>().target = null;
+                }
+                else if (currentTarget.GetComponent<Player>().currentRoom != currentRoom)
+                {
+                    timeWithNoQualifiedTarget = 0;
+                    currentTarget = null;
+                    gameObject.GetComponent<AIDestinationSetter>().target = null;
+                }
+            }
+            else if (currentTarget.GetComponent<Human>())
+            {
+                if (!currentTarget.GetComponent<Human>().isAlive)
+                {
+                    timeWithNoQualifiedTarget = 0;
+                    currentTarget = null;
+                    gameObject.GetComponent<AIDestinationSetter>().target = null;
+                }
+                else if (currentTarget.GetComponent<Human>().currentRoom != currentRoom)
+                {
+                    timeWithNoQualifiedTarget = 0;
+                    currentTarget = null;
+                    gameObject.GetComponent<AIDestinationSetter>().target = null;
+                }
+            }
+        }      
+    }
+
+    public void DetermineState()
+    {
+        if(visibleTargets.Count > 0 | currentTarget != null)
+        {
+            if (!applyRootMotion)
+            {
+                gameObject.GetComponent<AIPath>().maxSpeed = hostileSpeed;
+            }
+            isHostile = true;
+        }
+        else
+        {
+            if (!applyRootMotion)
+            {
+                gameObject.GetComponent<AIPath>().maxSpeed = defaultSpeed;
+            }
+            isHostile = false;
+        }    
+    }
+
+    // Animations and Animation Events
+
+    public void ManageAnimations()
+    {
+        if(gameObject.GetComponent<AIPath>().velocity.magnitude > 0 | applyRootMotion)
+        {
+            // Default
+            if (currentTarget == null)
+            {
+                _animator.SetBool(defaultMovementAnimationBools[defaultMovementAnimationBool], true);
+                _animator.SetBool(hostileMovementAnimationBools[hostileMovementAnimationBool], false);
+
+            }
+            // Hostile
+            else
+            {
+                _animator.SetBool(defaultMovementAnimationBools[defaultMovementAnimationBool], false);          
+                _animator.SetBool(hostileMovementAnimationBools[hostileMovementAnimationBool], true);
+                if (hasRoar & !hasRoared)
+                {
+                    if (Vector3.Distance(currentTarget.transform.position, gameObject.transform.position) >= 3)
+                    {
+                        _animator.SetBool("Roar", true);
+                        hasRoared = true;
+                    }
+                }
+                else if (hasRoar & hasRoared)
+                {
+                    _animator.SetBool("Roar", false);
+                }
+            }
+        }
+        // No Movement and Not Attacking
+        else if (gameObject.GetComponent<AIPath>().velocity.magnitude == 0 & !isAttacking)
+        {
+            _animator.SetBool(hostileMovementAnimationBools[hostileMovementAnimationBool], false);
+            _animator.SetBool(defaultMovementAnimationBools[defaultMovementAnimationBool], false);
+            _animator.SetBool(attackAnimationBools[attackAnimationBool], false);
+        }
+        // Initiate Attack
+        if (currentTarget != null & !isAttacking)
+        {
+            // Distance and Angle to Target Acceptable for Attack
+            Vector3 dir = (currentTarget.transform.position - transform.position).normalized;
+            float dot = Vector3.Dot(dir, transform.forward); // 1 directly facing, -1 directly facing away
+            if (Vector3.Distance(currentTarget.position, transform.position) <= attackDistance & dot > 0.8f)
+            {           
+                attackAnimationBool = UnityEngine.Random.Range(0, attackAnimationBools.Count);
+                _animator.SetBool(attackAnimationBools[attackAnimationBool], true);
+                isAttacking = true;
+                StartCoroutine(WaitToDisable());
+            }
+        }
+    }
+
+    public float attackCooldown = 0.25f;
+
+    public IEnumerator WaitToDisable()
+    {
+        float timeElapsed = 0;
+        while (timeElapsed < attackCooldown)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }       
+        _animator.SetBool(hostileMovementAnimationBool, false);
+        _animator.SetBool(defaultMovementAnimationBool, false);
+        _animator.SetBool(attackAnimationBools[attackAnimationBool], false);
+        isAttacking = false;
+    }
+
+    public void AttackVocalize()
+    {
+        if (attackVocalizations != null)
+        {
+            List<FMODUnity.StudioEventEmitter> attackVocalizationSources = attackVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList();
+            Vocalize(attackVocalizationSources, false, 0);
+        }
+    }
+
+    public FMODUnity.StudioEventEmitter roarAudioSource;
+
+    public bool hasRoar;
+    bool hasRoared;
+
+
+    public void Roar()
+    {
+        List<FMODUnity.StudioEventEmitter> roarSource = new List<FMODUnity.StudioEventEmitter> { roarAudioSource };
+        Vocalize(roarSource, true, 0.5f);
+        preRoarPosition = gameObject.transform.position;
+        StartCoroutine(WaitOutRoar());
+    }
+
+    Vector3 preRoarPosition;
+
+    public IEnumerator WaitOutRoar()
+    {
+        while (!_animator.GetCurrentAnimatorStateInfo(0).IsName("Roar"))
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                gameObject.transform.position = preRoarPosition;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        while (_animator.GetCurrentAnimatorStateInfo(0).IsName("Roar") & _animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f & health > 0)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                gameObject.transform.position = preRoarPosition;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+    }
+
+    public void PlayAttackSound()
+    {
+        attackSounds[attackAnimationBool].time = 0;
+        attackSounds[attackAnimationBool].Play();
+    }
+
+    public void StopAttackSound()
+    {
+        attackSounds[attackAnimationBool].Stop();
+    }
+
+    float audioCoolDown;
+
+    // Sounds on Attack Contacting Object 
+    public void AttackContactSounds()
+    {
+        return;
+        if (currentTarget.GetComponent<Bumpable>())
+        {
+            if (currentTarget.GetComponent<Bumpable>().soundMaterialType == "Wood")
+            {
+                AudioSource selectedAudio = ObjectWoodHit.gameObject.GetComponents<AudioSource>().ToList()[UnityEngine.Random.Range(0, ObjectWoodHit.gameObject.GetComponents<AudioSource>().ToList().Count)];
+                if (!selectedAudio.isPlaying)
+                {
+                    selectedAudio.time = 0;
+                    selectedAudio.Play();
+                }
+                if (currentTarget.GetComponent<Player>())
+                {
+                    soundMetricMaster.UpdateSoundBar(0.20f, player.gameObject.transform.position);
+                }
+            }
+            else if (currentTarget.GetComponent<Bumpable>().soundMaterialType == "Metal")
+            {
+                AudioSource selectedAudio = ObjectMetalHit.gameObject.GetComponents<AudioSource>().ToList()[UnityEngine.Random.Range(0, ObjectMetalHit.gameObject.GetComponents<AudioSource>().ToList().Count)];
+                if (!selectedAudio.isPlaying)
+                {
+                    selectedAudio.time = 0;
+                    selectedAudio.Play();
+                }
+                if (currentTarget.GetComponent<Player>())
+                {
+                    soundMetricMaster.UpdateSoundBar(0.20f, player.gameObject.transform.position);
+                }
+            }
+            else if (currentTarget.GetComponent<Bumpable>().soundMaterialType == "Ceramic")
+            {
+                AudioSource selectedAudio = ObjectCeramicHit.gameObject.GetComponents<AudioSource>().ToList()[UnityEngine.Random.Range(0, ObjectCeramicHit.gameObject.GetComponents<AudioSource>().ToList().Count)];
+                if (!selectedAudio.isPlaying)
+                {
+                    selectedAudio.time = 0;
+                    selectedAudio.Play();
+                }
+                if (currentTarget.GetComponent<Player>())
+                {
+                    soundMetricMaster.UpdateSoundBar(0.20f, player.gameObject.transform.position);
+                }
+            }
+            else if (currentTarget.GetComponent<Bumpable>().soundMaterialType == "Glass")
+            {
+                AudioSource selectedAudio = ObjectGlassHit.gameObject.GetComponents<AudioSource>().ToList()[UnityEngine.Random.Range(0, ObjectGlassHit.gameObject.GetComponents<AudioSource>().ToList().Count)];
+                if (!selectedAudio.isPlaying)
+                {
+                    selectedAudio.time = 0;
+                    selectedAudio.Play();
+                }
+                if (currentTarget.GetComponent<Player>())
+                {
+                    soundMetricMaster.UpdateSoundBar(0.25f, player.gameObject.transform.position);
+                }
+            }
+        }
+    }
+
+    // Object Destruction Sounds
+
+    public void DestructionNoises(GameObject other)
+    {
+        GameObject newSoundEmpty = Instantiate(soundEmpty) as GameObject;
+        newSoundEmpty.transform.position = other.gameObject.transform.position;
+        newSoundEmpty.SetActive(true);
+        if (other.GetComponent<Bumpable>())
+        {
+            if (other.GetComponent<Bumpable>().soundMaterialType == "Wood")
+            {
+                newSoundEmpty.GetComponent<AudioSource>().clip = woodDestruction;
+                newSoundEmpty.GetComponent<AudioSource>().time = 2.5f;
+                newSoundEmpty.GetComponent<AudioSource>().Play();
+                soundMetricMaster.UpdateSoundBar(0.5f, player.gameObject.transform.position);
+            }
+            else if (other.GetComponent<Bumpable>().soundMaterialType == "Glass")
+            {
+                newSoundEmpty.GetComponent<AudioSource>().clip = glassDestruction;
+                newSoundEmpty.GetComponent<AudioSource>().time = 0;
+                newSoundEmpty.GetComponent<AudioSource>().Play();
+                soundMetricMaster.UpdateSoundBar(0.5f, player.gameObject.transform.position);
+            }
+            else if (other.GetComponent<Bumpable>().soundMaterialType == "Ceramic")
+            {
+                newSoundEmpty.GetComponent<AudioSource>().clip = ceramicDestruction;
+                newSoundEmpty.GetComponent<AudioSource>().time = 0;
+                newSoundEmpty.GetComponent<AudioSource>().Play();
+                soundMetricMaster.UpdateSoundBar(0.5f, player.gameObject.transform.position);
+            }
+        } 
+    }
+
+    public void ConfigureAnimations()
+    {
+        defaultMovementAnimationBool = UnityEngine.Random.Range(0, defaultMovementAnimationBools.Count);
+        hostileMovementAnimationBool = UnityEngine.Random.Range(0, hostileMovementAnimationBools.Count);
+    }
+
+    public EPOOutline.Outlinable outlinable;
+    public void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.GetComponent<Player>())
+        {
+            playerIsColliding = true;
+            StartCoroutine(PlayerColliding(other));
+        }
+    }
+
+    public void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.GetComponent<Player>())
+        {
+            playerIsColliding = false;
+        }
+    }
+
+    bool playerIsColliding;
+
+    public IEnumerator PlayerColliding(Collider other)
+    {
+        while (playerIsColliding & health <= 0)
+        {
+            Vector3 dir = (transform.position - other.gameObject.transform.position).normalized;
+            float dot = Vector3.Dot(dir, other.gameObject.transform.forward); // 1 directly facing, -1 directly facing away
+            if (dot < 0 | Vector3.Distance(other.transform.position, gameObject.transform.position) > 0.25f)
+            {
+                if (player.focusedItem == gameObject)
+                {
+                    player.focusedItem = null;
+                }
+                outlinable.enabled = false;
+                player.worldspaceTooltip.SetActive(false);
+            }
+            else
+            {
+                player.focusedItem = gameObject;
+                outlinable.enabled = true;
+                player.worldspaceTooltip.transform.position = Camera.main.WorldToScreenPoint(transform.position);
+            }
+            yield return null;
+        }
+        if (player.focusedItem == gameObject)
+        {
+            player.focusedItem = null;
+        }
+        outlinable.enabled = false;
+        player.worldspaceTooltip.SetActive(false);
+    }
+
+    public List<BoxCollider> BoxCollidersToIgnore = new List<BoxCollider>();
+
+    public Room startRoom;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        if(currentRoom != null)
+        {
+            startRoom = currentRoom;
+        }
+        foreach(var collider in BoxCollidersToIgnore)
+        {
+            Physics.IgnoreCollision(gameObject.GetComponent<CapsuleCollider>(), collider);
+        }
+        ConfigureAnimations();
+        //
+        updateLoopTime = UnityEngine.Random.Range(0.05f, 0.15f);
+        lastUpdateTime = Time.deltaTime;
+        player.allEnemies.Add(gameObject);
+        if (applyRootMotion)
+        {
+            defaultSpeed = 0;
+            hostileSpeed = 0;
+            _animator.applyRootMotion = true;
+        }
+        if (!applyRootMotion) 
+        {
+            gameObject.GetComponent<AIPath>().maxSpeed = defaultSpeed;
+        }
+        startPosition = gameObject.transform.position;
+        gameObject.GetComponent<AIPath>().slowdownDistance = attackDistance + 0.5f;
+        gameObject.GetComponent<AIPath>().endReachedDistance = attackDistance;
+        casualVocalizationTime = UnityEngine.Random.Range(12, 20);
+        //
+        if (health >= 0)
+        {
+            if (livingRoutine == null)
+            {
+                originalPosition = gameObject.transform.position;
+                livingRoutine = WhileAlive();
+                StartCoroutine(livingRoutine);
+            }
+        }
+    }
+
+    public void TargetManagement()
+    {
+        if (Vector3.Distance(currentTarget.transform.position,gameObject.transform.position) > attackDistance)
+        {
+            if (!turningAround)
+            {
+                turningAround = true;
+                StartCoroutine(TurnToTarget());
+                DisengageTargetCheck();
+            }
+        }
+        else 
+        {
+            if (currentTarget.GetComponent<Human>() | currentTarget.GetComponent<Player>())
+            {
+                if (turnTimeElapsed > turnPause & !turningAround)
+                {
+                    turningAround = true;
+                    StartCoroutine(TurnToTarget());
+                }
+                else
+                {
+                    turnTimeElapsed += Time.deltaTime;
+                }
+                DisengageTargetCheck();
+            }
+            else
+            {
+                if (!turningAround)
+                {
+                    turningAround = true;
+                    StartCoroutine(TurnToTarget());
+                }
+                DisengageTargetCheck();
+            }
+        }
+    }
+
+    public IEnumerator TurnToTarget()
+    {
+        float timeSpentTuring = 0;
+        while (timeSpentTuring < 1 & currentTarget != null)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                timeSpentTuring += Time.deltaTime;
+                Vector3 dirToTarget = (currentTarget.position - transform.position).normalized;
+                Quaternion newRotation = gameObject.GetComponent<AIPath>().SimulateRotationTowards(dirToTarget, 45);
+                gameObject.GetComponent<AIPath>().FinalizeMovement(currentTarget.position, newRotation);
+                gameObject.GetComponent<AIPath>().destination = currentTarget.position;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        turnTimeElapsed = 0;
+        turningAround = false;
+    }
+
+    public IEnumerator ReviveThrall()
+    {
+        float timeElapsed = 0;
+        while(timeElapsed < 30)
+        {
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        health = 800;
+        _animator.SetBool("Dead", false);
+        Vocalize(casualVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList(), true, 0);
+        isAttacking = false;
+        gameObject.GetComponent<AIDestinationSetter>().target = null;
+        gameObject.GetComponent<AIDestinationSetter>().enabled = true;
+        fallenForward = false;
+        fallenBackward = false;
+        isDead = false;
+        StartCoroutine(WhileAlive());
+    }
+
+    public IEnumerator WhileAlive()
+    {
+        while(health > 0)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                if (Time.time - lastUpdateTime >= updateLoopTime)
+                {
+                    ManagePlayerEnemyLists();
+                    lastUpdateTime = Time.time;
+                    if (casualVocalizationTime == 0)
+                    {
+                        if(UnityEngine.Random.Range(0, 10) > 5)
+                        {
+                            Vocalize(casualVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList(), true, 0);
+                        }
+                    }
+                    if (currentRoom != null & wayPoints.Count == 0)
+                    {
+                        wayPoints = currentRoom.roomWaypoints.ToList();
+                    }
+                    //See();
+                    if (currentTarget == null)
+                    {
+                        gameObject.GetComponent<FIMSpace.FLook.FLookAnimator>().SetLookTarget(null);
+                        DefaultStateBehavior();
+                        currentNoiseImpulseTracking = 0;
+                        //Hear();
+                        gameObject.GetComponent<AIDestinationSetter>().target = FindClosestTarget();
+                        currentTarget = gameObject.GetComponent<AIDestinationSetter>().target;
+                        visibleTargets.Clear();
+                        if (currentWaypoint == null)
+                        {
+                            Patrol();
+                        }
+                    }
+                    else
+                    {
+                        TargetManagement();
+                    }
+                    DetermineState();
+                    ManageAnimations();
+                    if (!isHostile)
+                    {
+                        DefaultStateBehavior();
+                    }
+                }
+                yield return null;
+            }
+            else
+            {
+                lastUpdateTime = Time.time;
+                yield return null;
+            }          
+        }
+        if (dieOnLoad)
+        {
+            DetectDeath(this);
+        }
+        if (enemyType == "Thrall")
+        {
+            StartCoroutine(DieEventThrall());
+        }
+        else if (enemyType == "Abomination")
+        {
+            gameObject.GetComponent<CapsuleCollider>().radius = 0.05f;
+            gameObject.GetComponent<CapsuleCollider>().height = 0.1f;
+            gameObject.GetComponent<CapsuleCollider>().center = new Vector3(0, 0, 0);
+        }
+        else if(enemyType == "Armored Abomination")
+        {
+            gameObject.GetComponent<CapsuleCollider>().radius = 0.05f;
+            gameObject.GetComponent<CapsuleCollider>().height = 0.1f;
+            gameObject.GetComponent<CapsuleCollider>().center = new Vector3(0, 0, 0);
+        }
+        else if(enemyType == "Mannequin")
+        {
+            gameObject.GetComponent<CapsuleCollider>().enabled = false;
+        }
+        gameObject.GetComponent<MagicaCapsuleCollider>().enabled = false;
+        gameObject.GetComponent<AIPath>().destination = gameObject.transform.position;
+        gameObject.GetComponent<AIPath>().enabled = false;
+        //
+        //Destroy(gameObject.GetComponent<Rigidbody>());
+        //gameObject.GetComponent<CapsuleCollider>().enabled = false;
+    }
+
+    public IEnumerator DieEventThrall()
+    {
+        float timeElapsed = 0;
+        while (timeElapsed <= 3.4f)
+        {
+            if (!player.gameMaster.gamePaused)
+            {
+                timeElapsed += Time.deltaTime;
+                yield return null;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+        StartCoroutine(ReviveThrall());
+        //gameObject.GetComponent<CapsuleCollider>().radius = 0.3f;
+        //gameObject.GetComponent<CapsuleCollider>().height = 0.15f;
+        //gameObject.GetComponent<CapsuleCollider>().center = new Vector3(0, 0.3f, 0);
+    }
+
+    public void DieSoundAnimationEvent()
+    {
+        if(enemyType != "Mannequin")
+        {
+            finalNoiseAudio.time = 0;
+            finalNoiseAudio.Play();
+        }
+    }
+
+    public GameObject destroyedParts;
+
+    // Detecting Death 
+    public void DetectDeath(EnemyAIMaster enemyAIMaster)
+    {
+        if (health <= 0 | dieOnLoad)
+        {
+            casualVocalizationTime = UnityEngine.Random.Range(10, 15);
+            if (!dieOnLoad)
+            {
+                player.numberOfEnemiesKilled += 1;
+            }
+            _animator.SetBool("Dead", true);
+            isAttacking = false;
+            gameObject.GetComponent<AIDestinationSetter>().target = null;
+            gameObject.GetComponent<AIDestinationSetter>().enabled = false;
+            if (!fallenBackward)
+            {
+                fallenForward = true;
+            }
+            if (enemyType == "Mannequin")
+            {
+                destroyedParts.transform.SetParent(null);
+                destroyedParts.transform.position = gameObject.transform.position;
+                SMR.enabled = false;
+                SMR.gameObject.GetComponent<Collider>().enabled = false;
+                gameObject.GetComponent<Collider>().enabled = false;
+                destroyedParts.SetActive(true);
+            }
+            if (!dieOnLoad)
+            {
+                Vocalize(deathVocalizations.GetComponents<FMODUnity.StudioEventEmitter>().ToList(), false, 0);
+                if (enemyType == "Mannequin")
+                {
+                    finalNoiseAudio.time = 0;
+                    finalNoiseAudio.Play();
+                }
+            }
+            isDead = true;
+        }        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (!player.gameMaster.gamePaused & !isDead)
+        {
+            casualVocalizationTime = Mathf.Max(0, casualVocalizationTime - Time.deltaTime);
+        }
+    }
+}
